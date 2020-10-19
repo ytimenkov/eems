@@ -1,3 +1,5 @@
+add_subdirectory(asio)
+
 add_executable(eems)
 
 target_sources(eems PUBLIC
@@ -8,4 +10,5 @@ target_link_libraries(eems PUBLIC
     std::coroutines
     Boost::Boost
     fmt::fmt
+    asio
     )
