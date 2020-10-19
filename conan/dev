@@ -1,0 +1,13 @@
+# Profile for development
+
+[settings]
+build_type=Debug
+
+[options]
+# Use shared libraries for faster link time
+*:shared=True
+
+[env]
+CXXFLAGS=-Og
+eems:CXXFLAGS=-Og -Werror -Wall
+eems:CMAKE_EXPORT_COMPILE_COMMANDS=ON
