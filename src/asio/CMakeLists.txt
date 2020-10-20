@@ -1,5 +1,5 @@
 add_library(asio)
-target_sources(asio PUBLIC
+target_sources(asio PRIVATE
     asio.cpp
     beast.cpp
 )

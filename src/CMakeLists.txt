@@ -2,7 +2,7 @@ add_subdirectory(asio)
 
 add_executable(eems)
 
-target_sources(eems PUBLIC
+target_sources(eems PRIVATE
     main.cpp
     )
 
