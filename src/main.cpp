@@ -1,3 +1,5 @@
+#include "logging.h"
+
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/detached.hpp>
@@ -13,6 +15,8 @@ namespace http = beast::http;
 namespace net = boost::asio;
 using net::ip::tcp;
 
+namespace eems
+{
 net::awaitable<void> echo(tcp::socket socket)
 {
     try
@@ -42,12 +46,12 @@ net::awaitable<void> echo(tcp::socket socket)
     }
 }
 
-net::awaitable<void> listener()
+net::awaitable<void> listener(logger_sp logger)
 {
     auto executor = co_await net::this_coro::executor;
     tcp::acceptor acceptor{executor, {tcp::v4(), 8080}};
 
-    fmt::print("Server listening on http://{}\n", acceptor.local_endpoint());
+    logger->info("Server listening on http://{}\n", acceptor.local_endpoint());
 
     for (;;)
     {
@@ -55,15 +59,18 @@ net::awaitable<void> listener()
         net::co_spawn(executor, echo(std::move(socket)), net::detached);
     }
 }
+} // namespace eems
 
 int main()
 {
+    // TODO: Configure log file name
+    auto logger = eems::intialize_logging("eems.log");
     net::io_context io_context{1};
 
     net::signal_set signals(io_context, SIGINT, SIGTERM);
     signals.async_wait([&](auto, auto) { io_context.stop(); });
 
-    co_spawn(io_context, listener(), net::detached);
+    co_spawn(io_context, eems::listener(logger), net::detached);
 
     io_context.run();
 

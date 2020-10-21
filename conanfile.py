@@ -10,7 +10,7 @@ class EemsConan(ConanFile):
 
     scm = {"type": "git", "url": "auto", "revision": "auto"}
 
-    requires = ["boost/1.74.0", "fmt/7.0.3"]
+    requires = ["boost/1.74.0", "fmt/7.0.3", "pugixml/1.10", "spdlog/1.8.0"]
 
     def configure(self):
         tools.check_min_cppstd(self, "20")

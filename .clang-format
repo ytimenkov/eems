@@ -8,3 +8,6 @@ ColumnLimit: 0
 Standard: Latest
 DerivePointerAlignment: false
 PointerAlignment: Left
+DeriveLineEnding: false
+UseCRLF: false
+IncludeBlocks: Regroup
