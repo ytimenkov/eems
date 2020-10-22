@@ -11,3 +11,4 @@ PointerAlignment: Left
 DeriveLineEnding: false
 UseCRLF: false
 IncludeBlocks: Regroup
+FixNamespaceComments: false

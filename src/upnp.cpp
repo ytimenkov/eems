@@ -8,23 +8,35 @@
 
 namespace eems
 {
-auto handle_upnp_request(net::use_awaitable_t<>::as_default_on_t<beast::tcp_stream>& stream,
-                         http::header<true, http::fields> const& req,
-                         fs::path::iterator begin, fs::path::iterator end)
+auto respond_with_buffer(tcp_stream& stream, http_request const& req,
+                         beast::flat_buffer buffer, std::string_view mime_type)
     -> net::awaitable<void>
 {
-    auto doc = root_device_description("http://localhost:8000");
-
-    http::response<http::buffer_body> res{http::status::ok, req.version()};
+    auto const buf = buffer.data();
+    auto res = http::response<http::buffer_body>{
+        std::piecewise_construct,
+        std::make_tuple(buf.data(), buf.size(), false),
+        std::make_tuple(http::status::ok, req.version())};
     res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
-    res.set(http::field::content_type, "text/xml");
+    res.set(http::field::content_type, mime_type);
 
-    auto const  buf = doc.data();
-    res.body().data = buf.data();
-    res.body().size = buf.size();
-    res.body().more = false;
     res.prepare_payload();
 
     co_await http::async_write(stream, res);
 }
-} // namespace eems
+
+auto handle_upnp_request(tcp_stream& stream, http_request const& req,
+                         fs::path::iterator begin, fs::path::iterator end)
+    -> net::awaitable<void>
+{
+    if (begin != end)
+    {
+        if (begin->native() == "device")
+        {
+            co_await respond_with_buffer(stream, req, root_device_description("http://localhost:8000"), "text/xml");
+            co_return;
+        }
+    }
+    co_await http::async_write(stream, make_error_response(http::status::not_found, "Not found", req));
+}
+}

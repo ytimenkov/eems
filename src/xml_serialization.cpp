@@ -49,4 +49,4 @@ auto root_device_description(char const* url_base) -> beast::flat_buffer
 
     return result;
 }
-} // namespace eems
+}

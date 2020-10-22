@@ -7,6 +7,6 @@ namespace eems
 {
 auto intialize_logging(std::string const& file_name) -> std::shared_ptr<spdlog::logger>;
 
-} // namespace eems
+}
 
 #endif

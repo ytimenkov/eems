@@ -3,9 +3,13 @@ add_subdirectory(asio)
 add_executable(eems)
 
 target_sources(eems PRIVATE
+    fs.h
+    http_messages.cpp
+    http_messages.h
     logging.cpp
     logging.h
     main.cpp
+    net.h
     server.cpp
     server.h
     upnp.cpp

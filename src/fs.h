@@ -6,6 +6,6 @@
 namespace eems
 {
 namespace fs = std::filesystem;
-} // namespace eems
+}
 
 #endif

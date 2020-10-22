@@ -24,4 +24,4 @@ std::shared_ptr<spdlog::logger> intialize_logging(std::string const& file_name)
     new_logger->set_level(spdlog::level::debug);
     return new_logger;
 }
-} // namespace eems
+}

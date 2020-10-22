@@ -15,6 +15,6 @@ namespace net = boost::asio;
 namespace beast = boost::beast;
 namespace http = beast::http;
 
-} // namespace eems
+}
 
 #endif

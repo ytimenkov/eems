@@ -1,6 +1,7 @@
 #include "server.h"
 
 #include "fs.h"
+#include "http_messages.h"
 #include "upnp.h"
 
 #include <boost/asio/co_spawn.hpp>
@@ -18,18 +19,6 @@ namespace ranges = ::ranges;
 
 namespace eems
 {
-
-template <typename Request>
-auto bad_request(std::string_view reason, Request const& req)
-{
-    http::response<http::string_body> res{http::status::bad_request, req.version()};
-    res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
-    res.set(http::field::content_type, "text/html");
-    res.keep_alive(req.keep_alive());
-    res.body() = reason;
-    res.prepare_payload();
-    return res;
-}
 
 auto parse_target(std::string_view target) -> std::pair<fs::path, skyr::url_search_parameters>
 {
@@ -51,12 +40,12 @@ auto handle_connections(net::ip::tcp::socket socket) -> net::awaitable<void>
 {
     try
     {
-        auto stream{net::use_awaitable_t<>::as_default_on_t<beast::tcp_stream>{std::move(socket)}};
+        auto stream = tcp_stream{std::move(socket)};
 
-        beast::flat_buffer buffer;
+        auto buffer = beast::flat_buffer{};
         for (;;)
         {
-            http::request<http::string_body> req;
+            auto req = http_request{};
             stream.expires_after(std::chrono::seconds(30));
             co_await http::async_read(stream, buffer, req);
 
@@ -94,7 +83,7 @@ auto handle_connections(net::ip::tcp::socket socket) -> net::awaitable<void>
 auto run_server() -> net::awaitable<void>
 {
     auto executor = co_await net::this_coro::executor;
-    net::ip::tcp::acceptor acceptor{executor, {net::ip::tcp::v4(), 8000}};
+    auto acceptor = net::ip::tcp::acceptor{executor, {net::ip::tcp::v4(), 8000}};
 
     spdlog::info("Server listening on http://{}\n", acceptor.local_endpoint());
 
@@ -104,4 +93,4 @@ auto run_server() -> net::awaitable<void>
         net::co_spawn(executor, handle_connections(std::move(socket)), net::detached);
     }
 }
-} // namespace eems
+}
