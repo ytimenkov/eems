@@ -3,8 +3,15 @@ add_subdirectory(asio)
 add_executable(eems)
 
 target_sources(eems PRIVATE
-    main.cpp
     logging.cpp
+    logging.h
+    main.cpp
+    server.cpp
+    server.h
+    upnp.cpp
+    upnp.h
+    xml_serialization.cpp
+    xml_serialization.h
     )
 
 target_link_libraries(eems PUBLIC
@@ -13,5 +20,6 @@ target_link_libraries(eems PUBLIC
     fmt::fmt
     spdlog::spdlog
     pugixml::pugixml
+    skyr::skyr-url
     asio
     )

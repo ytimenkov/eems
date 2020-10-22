@@ -10,7 +10,18 @@ class EemsConan(ConanFile):
 
     scm = {"type": "git", "url": "auto", "revision": "auto"}
 
-    requires = ["boost/1.74.0", "fmt/7.0.3", "pugixml/1.10", "spdlog/1.8.0"]
+    requires = [
+        "boost/1.74.0",
+        "fmt/7.0.3",
+        "pugixml/1.10",
+        "spdlog/1.8.0",
+        "skyr-url/1.12.0",
+    ]
+
+    default_options = {
+        "skyr-url:shared": False,
+        "skyr-url:with_json": False,
+    }
 
     def configure(self):
         tools.check_min_cppstd(self, "20")

@@ -22,7 +22,6 @@ std::shared_ptr<spdlog::logger> intialize_logging(std::string const& file_name)
     auto new_logger = std::make_shared<spdlog::logger>("basic_logger", sinks);
     new_logger->flush_on(spdlog::level::debug);
     new_logger->set_level(spdlog::level::debug);
-    // spdlog::set_default_logger(std::move(new_logger));
     return new_logger;
 }
 } // namespace eems
