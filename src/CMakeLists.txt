@@ -12,6 +12,8 @@ target_sources(eems PRIVATE
     net.h
     server.cpp
     server.h
+    soap.cpp
+    soap.h
     upnp.cpp
     upnp.h
     xml_serialization.cpp

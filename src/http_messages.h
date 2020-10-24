@@ -15,6 +15,18 @@ namespace eems
 using http_request = http::request<http::basic_dynamic_body<beast::flat_buffer>>;
 using tcp_stream = net::use_awaitable_t<>::as_default_on_t<beast::tcp_stream>;
 
+class http_error : public std::runtime_error
+{
+  public:
+    http_error(http::status status, char const* message)
+        : runtime_error{message},
+          status{status}
+    {
+    }
+
+    http::status status;
+};
+
 auto make_error_response(http::status, std::string_view reason, http_request const& req)
     -> http::response<http::string_body>;
 

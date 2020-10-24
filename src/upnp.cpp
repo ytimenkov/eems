@@ -1,5 +1,6 @@
 #include "upnp.h"
 
+#include "soap.h"
 #include "xml_serialization.h"
 
 #include <boost/beast/core.hpp>
@@ -25,18 +26,19 @@ auto respond_with_buffer(tcp_stream& stream, http_request const& req,
     co_await http::async_write(stream, res);
 }
 
-auto handle_upnp_request(tcp_stream& stream, http_request const& req,
-                         fs::path::iterator begin, fs::path::iterator end)
+auto handle_upnp_request(tcp_stream& stream, http_request const& req, fs::path sub_path)
     -> net::awaitable<void>
 {
-    if (begin != end)
+    if (sub_path.native() == "device")
     {
-        if (begin->native() == "device")
-        {
-            co_await respond_with_buffer(stream, req, root_device_description("http://localhost:8000"), "text/xml");
-            co_return;
-        }
+        co_await respond_with_buffer(stream, req, root_device_description("http://localhost:8000"), "text/xml");
+        co_return;
     }
-    co_await http::async_write(stream, make_error_response(http::status::not_found, "Not found", req));
+    else if (sub_path.native() == "cds")
+    {
+        handle_soap_request(req);
+    }
+    throw http_error{http::status::not_found, "Not found"};
 }
+
 }

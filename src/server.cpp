@@ -12,6 +12,7 @@
 #include <fmt/ostream.h>
 #include <range/v3/algorithm/find_if_not.hpp>
 #include <range/v3/begin_end.hpp>
+#include <range/v3/iterator.hpp>
 #include <skyr/url.hpp> // TODO: Just run spirit on the query where needed
 #include <spdlog/spdlog.h>
 
@@ -53,25 +54,33 @@ auto handle_connections(net::ip::tcp::socket socket) -> net::awaitable<void>
 
             auto [path, query] = parse_target(req.target());
 
-            if (auto begin = ranges::find_if_not(path, &fs::path::has_root_directory);
-                begin != ranges::end(path))
+            auto begin = ranges::find_if_not(path, &fs::path::has_root_directory);
+
+            if (begin == ranges::end(path))
             {
-                spdlog::debug("Shall dispatch: {}", *begin);
+                // Serve index.
+                co_await http::async_write(stream, make_error_response(http::status::ok, "<html><body>Welcome!</body></html>", req));
+                continue;
+            }
+
+            spdlog::debug("Shall dispatch: {}", *begin);
+            auto sub_path = fs::path{};
+            for (auto it = ranges::next(begin); it != ranges::end(path); ++it)
+            {
+                sub_path /= *it;
+            }
+            try
+            {
                 if (begin->native() == "upnp")
                 {
-                    co_await handle_upnp_request(stream, req, ++begin, ranges::end(path));
+                    co_await handle_upnp_request(stream, req, std::move(sub_path));
                     continue;
                 }
             }
-
-            http::response<http::string_body> res{http::status::ok, req.version()};
-            res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
-            res.set(http::field::content_type, "text/html");
-            res.keep_alive(req.keep_alive());
-            res.body() = std::string("<html><body>Welcome!</body></html>");
-            res.prepare_payload();
-
-            co_await http::async_write(stream, res);
+            catch (http_error const& e)
+            {
+                co_await http::async_write(stream, make_error_response(e.status, e.what(), req));
+            }
         }
     }
     catch (std::exception& e)
