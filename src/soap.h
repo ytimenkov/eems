@@ -5,6 +5,6 @@
 
 namespace eems
 {
-auto handle_soap_request(http_request const& req) -> void;
+auto handle_soap_request(http_request&& req) -> void;
 }
 #endif

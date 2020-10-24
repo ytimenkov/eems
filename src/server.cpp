@@ -73,7 +73,7 @@ auto handle_connections(net::ip::tcp::socket socket) -> net::awaitable<void>
             {
                 if (begin->native() == "upnp")
                 {
-                    co_await handle_upnp_request(stream, req, std::move(sub_path));
+                    co_await handle_upnp_request(stream, std::move(req), std::move(sub_path));
                     continue;
                 }
             }

@@ -26,7 +26,7 @@ auto respond_with_buffer(tcp_stream& stream, http_request const& req,
     co_await http::async_write(stream, res);
 }
 
-auto handle_upnp_request(tcp_stream& stream, http_request const& req, fs::path sub_path)
+auto handle_upnp_request(tcp_stream& stream, http_request&& req, fs::path sub_path)
     -> net::awaitable<void>
 {
     if (sub_path.native() == "device")
@@ -36,7 +36,7 @@ auto handle_upnp_request(tcp_stream& stream, http_request const& req, fs::path s
     }
     else if (sub_path.native() == "cds")
     {
-        handle_soap_request(req);
+        handle_soap_request(std::move(req));
     }
     throw http_error{http::status::not_found, "Not found"};
 }

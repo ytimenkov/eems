@@ -6,7 +6,7 @@
 
 namespace eems
 {
-auto handle_upnp_request(tcp_stream& stream, http_request const& req, fs::path sub_path)
+auto handle_upnp_request(tcp_stream& stream, http_request&& req, fs::path sub_path)
     -> net::awaitable<void>;
 }
 
