@@ -1,10 +1,14 @@
 #include "soap.h"
 
+#include <boost/fusion/include/adapt_struct.hpp>
 #include <boost/fusion/sequence.hpp>
 #include <boost/spirit/home/x3.hpp>
-#include <pugixml.hpp>
 #include <range/v3/algorithm/starts_with.hpp>
 #include <spdlog/spdlog.h>
+
+BOOST_FUSION_ADAPT_STRUCT(
+    eems::soap_action_info,
+    service_id, action)
 
 namespace ranges = ::ranges;
 
@@ -30,7 +34,7 @@ auto local_name(pugi::xml_node const& node)
     return fqname;
 }
 
-auto handle_soap_request(http_request&& req) -> void
+auto parse_soap_request(http_request& req) -> soap_action_info
 {
     using namespace boost::spirit::x3;
     using namespace std::literals;
@@ -46,26 +50,26 @@ auto handle_soap_request(http_request&& req) -> void
         throw http_error{http::status::unsupported_media_type, "Must be an XML"};
     }
 
-    auto soap_info = boost::fusion::vector<std::string, std::string>{};
-    if (!parse(req["SOAPACTION"],
+    auto soap_info = soap_action_info{};
+    if (!parse(req["soapaction"],
                ('"' >> +(char_ - '#') >> '#' >> +(char_ - '"') >> '"'),
                soap_info))
     {
         throw http_error{http::status::bad_request, "Invalid SOAPACTION header"};
     }
 
-    pugi::xml_document doc;
     auto buffer = req.body().data();
 
-    if (auto parse_result = doc.load_buffer_inplace(buffer.data(), buffer.size()); !parse_result)
+    if (auto parse_result = soap_info.doc.load_buffer_inplace(buffer.data(), buffer.size()); !parse_result)
     {
         throw http_error{http::status::bad_request, parse_result.description()};
     }
 
-    auto action_noe = doc.first_child().first_child().first_child();
-    if (local_name(action_noe) != at_c<1>(soap_info))
+    auto action_node = soap_info.doc.document_element().first_child().first_child();
+    if (local_name(action_node) != soap_info.action)
     {
         throw http_error{http::status::bad_request, "Invalid action element"};
     }
+    return soap_info;
 }
 }

@@ -26,6 +26,12 @@ auto respond_with_buffer(tcp_stream& stream, http_request const& req,
     co_await http::async_write(stream, res);
 }
 
+auto handle_cds_browse(tcp_stream& stream, http_request&& req, soap_action_info const& soap_req)
+    -> net::awaitable<void>
+{
+    co_await async_write(stream, make_error_response(http::status::ok, "Tada!", req));
+}
+
 auto handle_upnp_request(tcp_stream& stream, http_request&& req, fs::path sub_path)
     -> net::awaitable<void>
 {
@@ -34,9 +40,17 @@ auto handle_upnp_request(tcp_stream& stream, http_request&& req, fs::path sub_pa
         co_await respond_with_buffer(stream, req, root_device_description("http://localhost:8000"), "text/xml");
         co_return;
     }
-    else if (sub_path.native() == "cds")
+    auto soap_info = parse_soap_request(req);
+
+    if (sub_path.native() == "cds")
     {
-        handle_soap_request(std::move(req));
+        if (soap_info.action != "Browse")
+        {
+            // TODO: Here we can send SOAP error instead. Fault or so...
+            throw http_error{http::status::bad_request, "Invalid action"};
+        }
+        co_await handle_cds_browse(stream, std::move(req), soap_info);
+        co_return;
     }
     throw http_error{http::status::not_found, "Not found"};
 }
