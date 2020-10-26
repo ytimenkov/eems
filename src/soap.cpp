@@ -65,8 +65,8 @@ auto parse_soap_request(http_request& req) -> soap_action_info
         throw http_error{http::status::bad_request, parse_result.description()};
     }
 
-    auto action_node = soap_info.doc.document_element().first_child().first_child();
-    if (local_name(action_node) != soap_info.action)
+    soap_info.params = soap_info.doc.document_element().first_child().first_child();
+    if (local_name(soap_info.params) != soap_info.action)
     {
         throw http_error{http::status::bad_request, "Invalid action element"};
     }

@@ -3,6 +3,8 @@ add_subdirectory(asio)
 add_executable(eems)
 
 target_sources(eems PRIVATE
+    directory_service.cpp
+    directory_service.h
     fs.h
     http_messages.cpp
     http_messages.h
