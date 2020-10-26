@@ -122,7 +122,7 @@ auto list_response(std::vector<directory_element> const& contents) -> beast::fla
 
     // Just reuse same writer / buffer...
     result.consume(result.size());
-    response.print(writer);
+    soap_doc.print(writer);
 
     return result;
 }
