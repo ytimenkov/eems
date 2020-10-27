@@ -16,6 +16,7 @@ class EemsConan(ConanFile):
         "pugixml/1.10",
         "spdlog/1.8.0",
         "range-v3/0.11.0",
+        "toml11/3.6.0",
     ]
 
     def configure(self):

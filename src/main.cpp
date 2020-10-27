@@ -1,3 +1,4 @@
+#include "config.h"
 #include "logging.h"
 #include "server.h"
 
@@ -5,12 +6,17 @@
 #include <boost/asio/detached.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/signal_set.hpp>
+#include <fmt/ostream.h>
+#include <fmt/ranges.h>
 #include <spdlog/spdlog.h>
 
-int main()
+int main(int argc, char const* argv[])
 {
+    auto config = eems::load_configuration(argc, argv);
     // TODO: Configure log file name
     spdlog::set_default_logger(std::move(eems::intialize_logging("eems.log")));
+
+    spdlog::info("Configs: {}", config.content_directories);
 
     boost::asio::io_context io_context{1};
 

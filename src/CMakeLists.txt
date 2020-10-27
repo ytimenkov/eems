@@ -3,6 +3,8 @@ add_subdirectory(asio)
 add_executable(eems)
 
 target_sources(eems PRIVATE
+    config.cpp
+    config.h
     directory_service.cpp
     directory_service.h
     fs.h
@@ -29,5 +31,6 @@ target_link_libraries(eems PUBLIC
     spdlog::spdlog
     pugixml::pugixml
     range-v3::range-v3
+    toml11::toml11
     asio
     )
