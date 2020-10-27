@@ -15,13 +15,8 @@ class EemsConan(ConanFile):
         "fmt/7.0.3",
         "pugixml/1.10",
         "spdlog/1.8.0",
-        "skyr-url/1.12.0",
+        "range-v3/0.11.0",
     ]
-
-    default_options = {
-        "skyr-url:shared": False,
-        "skyr-url:with_json": False,
-    }
 
     def configure(self):
         tools.check_min_cppstd(self, "20")

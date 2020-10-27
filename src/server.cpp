@@ -13,7 +13,6 @@
 #include <range/v3/algorithm/find_if_not.hpp>
 #include <range/v3/begin_end.hpp>
 #include <range/v3/iterator.hpp>
-#include <skyr/url.hpp> // TODO: Just run spirit on the query where needed
 #include <spdlog/spdlog.h>
 
 namespace ranges = ::ranges;
@@ -21,14 +20,14 @@ namespace ranges = ::ranges;
 namespace eems
 {
 
-auto parse_target(std::string_view target) -> std::pair<fs::path, skyr::url_search_parameters>
+auto parse_target(std::string_view target) -> std::pair<fs::path, std::string_view>
 {
 
     if (auto const query_pos = target.find('?'); query_pos != target.npos)
     {
         auto const path = target.substr(0, query_pos);
         target.remove_prefix(query_pos);
-        return {{path, fs::path::format::generic_format}, skyr::url_search_parameters{target}};
+        return {{path, fs::path::format::generic_format}, target};
     }
     return {{target, fs::path::format::generic_format}, {}};
 }

@@ -10,7 +10,7 @@ find_package(Boost REQUIRED)
 find_package(fmt REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(pugixml REQUIRED)
-find_package(skyr-url REQUIRED)
+find_package(range-v3 REQUIRED)
 
 # TODO: Implement proper detection.
 add_library(std::coroutines INTERFACE IMPORTED)

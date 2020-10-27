@@ -28,6 +28,6 @@ target_link_libraries(eems PUBLIC
     fmt::fmt
     spdlog::spdlog
     pugixml::pugixml
-    skyr::skyr-url
+    range-v3::range-v3
     asio
     )
