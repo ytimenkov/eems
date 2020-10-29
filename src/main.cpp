@@ -18,12 +18,16 @@ int main(int argc, char const* argv[])
 
     spdlog::info("Configs: {}", config.content_directories);
 
+    auto directory_service = eems::directory_service{config};
+    auto upnp_service = eems::upnp_service{directory_service};
+    auto server = eems::server{upnp_service};
+
     boost::asio::io_context io_context{1};
 
     boost::asio::signal_set signals(io_context, SIGINT, SIGTERM);
     signals.async_wait([&](auto, auto) { io_context.stop(); });
 
-    boost::asio::co_spawn(io_context, eems::run_server(), boost::asio::detached);
+    boost::asio::co_spawn(io_context, server.run_server(), boost::asio::detached);
 
     io_context.run();
 

@@ -68,12 +68,12 @@ auto root_device_description(char const* url_base) -> beast::flat_buffer
 
 auto serialize_common_fields(pugi::xml_node& node, object const& elem) -> void
 {
-    node.append_attribute("id").set_value(elem.id.c_str());
-    node.append_attribute("parentID").set_value(elem.parent_id.c_str());
+    node.append_attribute("id").set_value(reinterpret_cast<char const*>(elem.id.c_str()));
+    node.append_attribute("parentID").set_value(reinterpret_cast<char const*>(elem.parent_id.c_str()));
     node.append_attribute("restricted").set_value("1");
 
-    node.append_child("dc:title").text().set(elem.dc_title.c_str());
-    node.append_child("upnp:class").text().set(elem.upnp_class.c_str());
+    node.append_child("dc:title").text().set(reinterpret_cast<char const*>(elem.dc_title.c_str()));
+    node.append_child("upnp:class").text().set(reinterpret_cast<char const*>(elem.upnp_class.c_str()));
 }
 
 auto serialize(pugi::xml_node& node, item const& elem)

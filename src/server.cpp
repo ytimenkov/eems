@@ -2,6 +2,7 @@
 
 #include "fs.h"
 #include "http_messages.h"
+#include "ranges.h"
 #include "upnp.h"
 
 #include <boost/asio/co_spawn.hpp>
@@ -14,8 +15,6 @@
 #include <range/v3/begin_end.hpp>
 #include <range/v3/iterator.hpp>
 #include <spdlog/spdlog.h>
-
-namespace ranges = ::ranges;
 
 namespace eems
 {
@@ -32,11 +31,7 @@ auto parse_target(std::string_view target) -> std::pair<fs::path, std::string_vi
     return {{target, fs::path::format::generic_format}, {}};
 }
 
-auto process_request()
-{
-}
-
-auto handle_connections(net::ip::tcp::socket socket) -> net::awaitable<void>
+auto server::handle_connections(net::ip::tcp::socket socket) -> net::awaitable<void>
 {
     try
     {
@@ -72,7 +67,7 @@ auto handle_connections(net::ip::tcp::socket socket) -> net::awaitable<void>
             {
                 if (begin->native() == "upnp")
                 {
-                    co_await handle_upnp_request(stream, std::move(req), std::move(sub_path));
+                    co_await upnp_service_.handle_upnp_request(stream, std::move(req), std::move(sub_path));
                     continue;
                 }
             }
@@ -88,7 +83,7 @@ auto handle_connections(net::ip::tcp::socket socket) -> net::awaitable<void>
     }
 }
 
-auto run_server() -> net::awaitable<void>
+auto server::run_server() -> net::awaitable<void>
 {
     auto executor = co_await net::this_coro::executor;
     auto acceptor = net::ip::tcp::acceptor{executor, {net::ip::tcp::v4(), 8000}};

@@ -28,10 +28,10 @@ auto respond_with_buffer(tcp_stream& stream, http_request const& req,
     co_await http::async_write(stream, res);
 }
 
-auto handle_cds_browse(tcp_stream& stream, http_request&& req, soap_action_info const& soap_req)
+auto upnp_service::handle_cds_browse(tcp_stream& stream, http_request&& req, soap_action_info const& soap_req)
     -> net::awaitable<void>
 {
-    auto object_id = soap_req.params.child_value("ObjectID");
+    auto object_id = reinterpret_cast<char8_t const*>(soap_req.params.child_value("ObjectID"));
     auto const browse_flag = [flag = std::string_view{soap_req.params.child_value("BrowseFlag")}]() {
         if (flag == "BrowseDirectChildren")
             return browse_flag::direct_children;
@@ -41,13 +41,12 @@ auto handle_cds_browse(tcp_stream& stream, http_request&& req, soap_action_info 
             // TODO: Here we can send SOAP error instead. Fault or so...
             throw http_error{http::status::bad_request, "Invalid BrowseFlag"};
     }();
-    auto directory = directory_service{};
-    auto results = directory.browse(object_id, browse_flag);
+    auto results = directory_service_.browse(object_id, browse_flag);
 
     co_await respond_with_buffer(stream, req, list_response(results), "text/xml");
 }
 
-auto handle_upnp_request(tcp_stream& stream, http_request&& req, fs::path sub_path)
+auto upnp_service::handle_upnp_request(tcp_stream& stream, http_request&& req, fs::path sub_path)
     -> net::awaitable<void>
 {
     if (sub_path.native() == "device")

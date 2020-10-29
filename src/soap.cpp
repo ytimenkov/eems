@@ -1,5 +1,7 @@
 #include "soap.h"
 
+#include "ranges.h"
+
 #include <boost/fusion/include/adapt_struct.hpp>
 #include <boost/fusion/sequence.hpp>
 #include <boost/spirit/home/x3.hpp>
@@ -9,8 +11,6 @@
 BOOST_FUSION_ADAPT_STRUCT(
     eems::soap_action_info,
     service_id, action)
-
-namespace ranges = ::ranges;
 
 namespace eems
 {
