@@ -10,7 +10,7 @@ namespace eems
 struct soap_action_info;
 class upnp_service
 {
-  public:
+public:
     explicit upnp_service(directory_service& directory_service)
         : directory_service_{directory_service}
     {
@@ -19,11 +19,11 @@ class upnp_service
     auto handle_upnp_request(tcp_stream& stream, http_request&& req, fs::path sub_path)
         -> net::awaitable<void>;
 
-  private:
+private:
     auto handle_cds_browse(tcp_stream& stream, http_request&& req, soap_action_info const& soap_req)
         -> net::awaitable<void>;
 
-  private:
+private:
     directory_service& directory_service_;
 };
 }

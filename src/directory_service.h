@@ -3,6 +3,7 @@
 
 #include "config.h"
 
+#include <optional>
 #include <string>
 #include <variant>
 #include <vector>
@@ -15,6 +16,12 @@ enum class browse_flag
     direct_children,
 };
 
+struct resource
+{
+    std::u8string protocol_info;
+    std::u8string url;
+};
+
 struct object
 {
     std::u8string id;
@@ -25,6 +32,7 @@ struct object
 
 struct item : object
 {
+    std::vector<resource> resources;
 };
 
 struct container : object
@@ -35,7 +43,7 @@ using directory_element = std::variant<item, container>;
 
 class directory_service
 {
-  public:
+public:
     explicit directory_service(data_config const& config)
         : config_{config}
     {
@@ -45,8 +53,12 @@ class directory_service
     // TODO: Also returns dumb NumberReturned value and TotalMatches and UpdateID
     auto browse(std::u8string_view id, browse_flag mode) -> std::vector<directory_element>;
 
-  private:
+private:
     data_config const& config_;
 };
+
+auto get_mime_type(fs::path const& path)
+    -> std::optional<std::string_view>;
+
 }
 #endif

@@ -1,15 +1,18 @@
 #include "xml_serialization.h"
 
 #include "net.h"
+#include "ranges.h"
 
+#include <fmt/core.h>
 #include <pugixml.hpp>
+#include <range/v3/algorithm/for_each.hpp>
 
 namespace eems
 {
 
 class buffer_writer : public pugi::xml_writer
 {
-  public:
+public:
     explicit buffer_writer(beast::flat_buffer& buffer)
         : buffer{buffer}
     {
@@ -22,7 +25,7 @@ class buffer_writer : public pugi::xml_writer
         buffer.commit(net::buffer_copy(buf, net::const_buffer{data, size}));
     }
 
-  private:
+private:
     beast::flat_buffer& buffer;
 };
 
@@ -76,19 +79,26 @@ auto serialize_common_fields(pugi::xml_node& node, object const& elem) -> void
     node.append_child("upnp:class").text().set(reinterpret_cast<char const*>(elem.upnp_class.c_str()));
 }
 
-auto serialize(pugi::xml_node& node, item const& elem)
+auto serialize(pugi::xml_node& node, std::u8string_view content_base, item const& elem)
 {
     auto item = node.append_child("item");
     serialize_common_fields(item, elem);
+
+    ranges::for_each(elem.resources, [&item, content_base](resource const& r) {
+        auto res = item.append_child("res");
+        res.append_attribute("protocolInfo").set_value(reinterpret_cast<char const*>(r.protocol_info.c_str()));
+        res.text().set(reinterpret_cast<char const*>(fmt::format(u8"{}{}", content_base, r.url).c_str()));
+    });
 }
 
-auto serialize(pugi::xml_node& node, container const& elem)
+auto serialize(pugi::xml_node& node, std::u8string_view content_base, container const& elem)
 {
     auto container = node.append_child("container");
     serialize_common_fields(container, elem);
 }
 
-auto list_response(std::vector<directory_element> const& contents) -> beast::flat_buffer
+auto list_response(std::vector<directory_element> const& contents, std::u8string_view content_base)
+    -> beast::flat_buffer
 {
     auto [didl_doc, didl_root] = generate_preamble("DIDL-Lite", "urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/");
     didl_root.append_attribute("xmlns:upnp").set_value("urn:schemas-upnp-org:metadata-1-0/upnp/");
@@ -96,7 +106,7 @@ auto list_response(std::vector<directory_element> const& contents) -> beast::fla
 
     for (auto const& elem : contents)
     {
-        std::visit([&didl_root](auto const& elem) { serialize(didl_root, elem); }, elem);
+        std::visit([&didl_root, content_base](auto const& elem) { serialize(didl_root, content_base, elem); }, elem);
     }
 
     beast::flat_buffer result;

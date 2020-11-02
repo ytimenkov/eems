@@ -5,6 +5,8 @@ add_executable(eems)
 target_sources(eems PRIVATE
     config.cpp
     config.h
+    content_service.cpp
+    content_service.h
     directory_service.cpp
     directory_service.h
     fs.h

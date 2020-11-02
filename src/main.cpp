@@ -20,7 +20,8 @@ int main(int argc, char const* argv[])
 
     auto directory_service = eems::directory_service{config};
     auto upnp_service = eems::upnp_service{directory_service};
-    auto server = eems::server{upnp_service};
+    auto content_service = eems::content_service{};
+    auto server = eems::server{upnp_service, content_service};
 
     boost::asio::io_context io_context{1};
 

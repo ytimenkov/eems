@@ -43,7 +43,7 @@ auto upnp_service::handle_cds_browse(tcp_stream& stream, http_request&& req, soa
     }();
     auto results = directory_service_.browse(object_id, browse_flag);
 
-    co_await respond_with_buffer(stream, req, list_response(results), "text/xml");
+    co_await respond_with_buffer(stream, req, list_response(results, u8"http://localhost:8000/content"), "text/xml");
 }
 
 auto upnp_service::handle_upnp_request(tcp_stream& stream, http_request&& req, fs::path sub_path)

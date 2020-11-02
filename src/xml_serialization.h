@@ -9,7 +9,8 @@
 namespace eems
 {
 auto root_device_description(char const* url_base) -> beast::flat_buffer;
-auto list_response(std::vector<directory_element> const& contents) -> beast::flat_buffer;
+auto list_response(std::vector<directory_element> const& contents, std::u8string_view content_base)
+    -> beast::flat_buffer;
 }
 
 #endif

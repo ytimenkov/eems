@@ -17,7 +17,7 @@ using tcp_stream = net::use_awaitable_t<>::as_default_on_t<beast::tcp_stream>;
 
 class http_error : public std::runtime_error
 {
-  public:
+public:
     http_error(http::status status, char const* message)
         : runtime_error{message},
           status{status}

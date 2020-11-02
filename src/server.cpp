@@ -70,6 +70,11 @@ auto server::handle_connections(net::ip::tcp::socket socket) -> net::awaitable<v
                     co_await upnp_service_.handle_upnp_request(stream, std::move(req), std::move(sub_path));
                     continue;
                 }
+                else if (begin->native() == "content")
+                {
+                    co_await content_service_.handle_request(stream, std::move(req), std::move(sub_path));
+                    continue;
+                }
             }
             catch (http_error const& e)
             {
