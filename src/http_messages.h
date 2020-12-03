@@ -27,8 +27,10 @@ public:
     http::status status;
 };
 
+using error_response_ptr = std::unique_ptr<http::response<http::string_body>>;
+
 auto make_error_response(http::status, std::string_view reason, http_request const& req)
-    -> http::response<http::string_body>;
+    -> error_response_ptr;
 
 }
 #endif

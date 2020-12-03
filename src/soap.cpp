@@ -1,10 +1,10 @@
 #include "soap.h"
 
 #include "ranges.h"
+#include "spirit.h"
 
 #include <boost/fusion/include/adapt_struct.hpp>
 #include <boost/fusion/sequence.hpp>
-#include <boost/spirit/home/x3.hpp>
 #include <range/v3/algorithm/starts_with.hpp>
 #include <spdlog/spdlog.h>
 
@@ -14,16 +14,6 @@ BOOST_FUSION_ADAPT_STRUCT(
 
 namespace eems
 {
-template <typename Parser, typename Attribute>
-auto parse(std::string_view text, Parser const& p, Attribute& attr)
-{
-    auto first = text.begin();
-    auto const res = ::boost::spirit::x3::parse(first, text.end(), p, attr);
-    if (!res || first != text.end())
-        return false;
-    return res;
-}
-
 auto local_name(pugi::xml_node const& node)
 {
     auto fqname = std::string_view{node.name()};
@@ -36,8 +26,7 @@ auto local_name(pugi::xml_node const& node)
 
 auto parse_soap_request(http_request& req) -> soap_action_info
 {
-    using namespace boost::spirit::x3;
-    using namespace std::literals;
+    using namespace x3;
 
     if (req.method() != http::verb::post)
     {
@@ -45,7 +34,7 @@ auto parse_soap_request(http_request& req) -> soap_action_info
     }
 
     // TODO: Optional parmeters may need to be parsed, like encoding.
-    if (!ranges::starts_with(req[http::field::content_type], "text/xml"sv))
+    if (!req[http::field::content_type].starts_with("text/xml"))
     {
         throw http_error{http::status::unsupported_media_type, "Must be an XML"};
     }

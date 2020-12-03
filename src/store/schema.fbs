@@ -1,0 +1,42 @@
+namespace eems;
+
+struct ContainerKey {
+    id: int64;
+}
+
+struct ItemKey {
+    id: int64;
+}
+
+union KeyUnion {
+    ContainerKey,
+    ItemKey,
+}
+
+table LibraryKey {
+    key: KeyUnion;
+}
+
+root_type LibraryKey;
+
+table Container {
+    dc_title: [ubyte];
+    objects: [LibraryKey];
+}
+
+root_type Container;
+
+table Resource {
+    protocol_info: [ubyte];
+    location: [ubyte];
+}
+
+table MediaItem {
+    id: ItemKey;
+    parent_id: ContainerKey;
+    dc_title: [ubyte];
+    upnp_class: [ubyte];
+    resources: [Resource];
+}
+
+root_type MediaItem;

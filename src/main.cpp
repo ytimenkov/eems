@@ -1,5 +1,6 @@
 #include "config.h"
 #include "logging.h"
+#include "scan_service.h"
 #include "server.h"
 
 #include <boost/asio/co_spawn.hpp>
@@ -18,10 +19,18 @@ int main(int argc, char const* argv[])
 
     spdlog::info("Configs: {}", config.content_directories);
 
-    auto directory_service = eems::directory_service{config};
+    auto store_service = eems::store_service{};
+    auto directory_service = eems::directory_service{store_service};
     auto upnp_service = eems::upnp_service{directory_service};
     auto content_service = eems::content_service{};
     auto server = eems::server{upnp_service, content_service};
+    auto scan_service = eems::scan_service{};
+
+    // TODO: This is temporary:
+    for (auto& path : config.content_directories)
+    {
+        scan_service.scan_all(path, store_service);
+    }
 
     boost::asio::io_context io_context{1};
 

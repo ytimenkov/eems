@@ -6,6 +6,7 @@
 #include <fmt/core.h>
 #include <pugixml.hpp>
 #include <range/v3/algorithm/for_each.hpp>
+#include <spdlog/spdlog.h>
 
 namespace eems
 {
@@ -115,6 +116,8 @@ auto list_response(std::vector<directory_element> const& contents, std::u8string
     didl_doc.print(writer);
     // Unfortunately PugiXML doesn't provide string_view-like interfaces, only C-strings...
     append_null(result);
+
+    spdlog::debug("Returning DIDL:\n{}", static_cast<char const*>(result.data().data()));
 
     auto soap_doc = pugi::xml_document{};
     auto soap_root = soap_doc.append_child("s:Envelope");

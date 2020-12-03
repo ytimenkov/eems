@@ -1,7 +1,7 @@
 #ifndef EEMS_DIRECTORY_SERVICE_H
 #define EEMS_DIRECTORY_SERVICE_H
 
-#include "config.h"
+#include "store/store_service.h"
 
 #include <optional>
 #include <string>
@@ -44,8 +44,8 @@ using directory_element = std::variant<item, container>;
 class directory_service
 {
 public:
-    explicit directory_service(data_config const& config)
-        : config_{config}
+    explicit directory_service(store_service& store_service)
+        : store_service_{store_service}
     {
     }
 
@@ -54,11 +54,8 @@ public:
     auto browse(std::u8string_view id, browse_flag mode) -> std::vector<directory_element>;
 
 private:
-    data_config const& config_;
+    store_service& store_service_;
 };
-
-auto get_mime_type(fs::path const& path)
-    -> std::optional<std::string_view>;
 
 }
 #endif

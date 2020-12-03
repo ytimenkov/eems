@@ -53,7 +53,7 @@ auto server::handle_connections(net::ip::tcp::socket socket) -> net::awaitable<v
             if (begin == ranges::end(path))
             {
                 // Serve index.
-                co_await http::async_write(stream, make_error_response(http::status::ok, "<html><body>Welcome!</body></html>", req));
+                co_await http::async_write(stream, *make_error_response(http::status::ok, "<html><body>Welcome!</body></html>", req));
                 continue;
             }
 
@@ -63,6 +63,9 @@ auto server::handle_connections(net::ip::tcp::socket socket) -> net::awaitable<v
             {
                 sub_path /= *it;
             }
+            // If we need to send an error back because of exception, store it separately,
+            // because coroutine can't be suspended in catch() caluse (due to the active exception).
+            error_response_ptr exceptional_error;
             try
             {
                 if (begin->native() == "upnp")
@@ -78,8 +81,22 @@ auto server::handle_connections(net::ip::tcp::socket socket) -> net::awaitable<v
             }
             catch (http_error const& e)
             {
-                co_await http::async_write(stream, make_error_response(e.status, e.what(), req));
+                spdlog::warn("Request {} failed: {}, {}", req.target(), e.status, e.what());
+                exceptional_error = make_error_response(e.status, e.what(), req);
             }
+
+            if (exceptional_error)
+            {
+                co_await http::async_write(stream, *exceptional_error);
+            }
+        }
+    }
+    catch (boost::system::system_error& e)
+    {
+        // It's ok when client closes connection.
+        if (e.code() != http::error::end_of_stream)
+        {
+            spdlog::warn("Exception during handling request: {}", e.what());
         }
     }
     catch (std::exception& e)
