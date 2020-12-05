@@ -70,7 +70,7 @@ auto scan_service::scan_directory(fs::path const& path)
         if (!mime_type)
             continue;
 
-        auto& builder = result.items.emplace_back(1024);
+        auto builder = flatbuffers::FlatBufferBuilder{};
         auto dc_title = create_u8_string(item.path().filename().generic_u8string(), builder);
         auto upnp_class = create_u8_string(get_upnp_class(*mime_type), builder);
 
@@ -95,6 +95,7 @@ auto scan_service::scan_directory(fs::path const& path)
             item_builder.add_parent_id(&parent_id);
         }
         builder.Finish(item_builder.Finish());
+        result.items.emplace_back(builder.Release());
 
         spdlog::info("Discovered media item [{}] at {}", reinterpret_cast<std::string_view const&>(*mime_type), item.path());
     }

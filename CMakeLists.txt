@@ -14,6 +14,7 @@ find_package(range-v3 REQUIRED)
 find_package(toml11 REQUIRED)
 find_package(Flatbuffers REQUIRED)
 find_package(flatc REQUIRED)
+find_package(leveldb REQUIRED)
 
 # TODO: Implement proper detection.
 add_library(std::coroutines INTERFACE IMPORTED)

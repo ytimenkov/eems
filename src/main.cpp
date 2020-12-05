@@ -17,9 +17,9 @@ int main(int argc, char const* argv[])
     // TODO: Configure log file name
     spdlog::set_default_logger(std::move(eems::intialize_logging("eems.log")));
 
-    spdlog::info("Configs: {}", config.content_directories);
+    spdlog::info("Configs: {}", config.data.content_directories);
 
-    auto store_service = eems::store_service{};
+    auto store_service = eems::store_service{config.db};
     auto directory_service = eems::directory_service{store_service};
     auto upnp_service = eems::upnp_service{directory_service};
     auto content_service = eems::content_service{};
@@ -27,7 +27,7 @@ int main(int argc, char const* argv[])
     auto scan_service = eems::scan_service{};
 
     // TODO: This is temporary:
-    for (auto& path : config.content_directories)
+    for (auto& path : config.data.content_directories)
     {
         scan_service.scan_all(path, store_service);
     }

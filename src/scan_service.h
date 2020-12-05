@@ -11,7 +11,7 @@ class scan_service
 public:
     struct scan_result
     {
-        std::vector<flatbuffers::FlatBufferBuilder> items;
+        std::vector<flatbuffers::DetachedBuffer> items;
         std::vector<fs::path> directories;
     };
 

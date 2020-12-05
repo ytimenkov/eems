@@ -8,7 +8,7 @@ namespace eems
 namespace po = boost::program_options;
 
 auto load_configuration(int argc, char const* argv[])
-    -> data_config
+    -> config
 {
     auto desc = po::options_description{"Allowed options"};
     desc.add_options()                                                        //
@@ -18,14 +18,16 @@ auto load_configuration(int argc, char const* argv[])
     po::store(po::parse_command_line(argc, argv, desc), vm);
     po::notify(vm);
 
-    auto result = data_config{};
+    auto result = config{};
     auto data = toml::parse(vm["config"].as<fs::path>());
     auto const& content = toml::find<toml::array>(data, "content");
     for (auto const& table : content)
     {
-        result.content_directories.emplace_back(
+        result.data.content_directories.emplace_back(
             static_cast<std::string const&>(toml::find<toml::string>(table, "path")));
     }
+    auto const& db = toml::find(data, "db");
+    result.db.path = static_cast<std::string const&>(toml::find<toml::string>(db, "path"));
     return result;
 }
 }

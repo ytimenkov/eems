@@ -14,8 +14,10 @@ target_sources(store PRIVATE
 target_link_libraries(store
     PUBLIC
     flatbuffers::flatbuffers
+    leveldb::leveldb
     PRIVATE
     range-v3::range-v3
+    spdlog::spdlog
     )
 
 target_include_directories(store PUBLIC ${CMAKE_CURRENT_BINARY_DIR})

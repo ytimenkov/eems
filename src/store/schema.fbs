@@ -17,14 +17,10 @@ table LibraryKey {
     key: KeyUnion;
 }
 
-root_type LibraryKey;
-
 table Container {
     dc_title: [ubyte];
     objects: [LibraryKey];
 }
-
-root_type Container;
 
 table Resource {
     protocol_info: [ubyte];
