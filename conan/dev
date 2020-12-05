@@ -10,5 +10,5 @@ build_type=Debug
 
 [env]
 CXXFLAGS=$OPT_FLAGS
-eems:CXXFLAGS=$OPT_FLAGS -Werror -Wall
+eems:CXXFLAGS=$OPT_FLAGS -Werror -Wall -fdiagnostics-color
 eems:CMAKE_EXPORT_COMPILE_COMMANDS=ON
