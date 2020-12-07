@@ -105,21 +105,11 @@ auto store_service::put_item(ContainerKey parent, flatbuffers::DetachedBuffer&& 
              leveldb::Slice{reinterpret_cast<char const*>(item.data()), item.size()});
 }
 
-auto store_service::list(ContainerKey id) -> store_service::list_result
+auto store_service::list(ContainerKey id) -> store_service::list_result_view
 {
-    list_result result{};
-    result.memory.reset(db_->NewIterator(leveldb::ReadOptions{}));
-    auto& it = *result.memory;
-
-    for (it.Seek(serialize_key(ItemKey{0})); it.Valid(); it.Next())
-    {
-        if (flatbuffers::GetRoot<LibraryKey>(it.key().data())->key_type() != KeyUnion::ItemKey)
-            break;
-
-        result.items.emplace_back(flatbuffers::GetRoot<MediaItem>(it.value().data()));
-    }
-
-    return result;
+    std::unique_ptr<leveldb::Iterator> it{db_->NewIterator(leveldb::ReadOptions{})};
+    it->Seek(serialize_key(ItemKey{0}));
+    return list_result_view{std::move(it)};
 }
 
 }

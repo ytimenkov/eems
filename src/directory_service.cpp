@@ -30,15 +30,15 @@ auto directory_service::browse(std::u8string_view id, browse_flag mode) -> std::
     // optional in the flatbuffers and we need to have validation at some point:
     // either when reading from DB or throughout the code.
     auto result = store_service_.list(ContainerKey{parentId});
-    return result.items | views::transform([id](auto const& e) -> directory_element {
-               auto dc_title = get_u8_string_view(*e->dc_title());
-               auto upnp_class = get_u8_string_view(*e->upnp_class());
+    return result | views::transform([id](auto const& e) -> directory_element {
+               auto dc_title = get_u8_string_view(*e.dc_title());
+               auto upnp_class = get_u8_string_view(*e.upnp_class());
                return item{
-                   fmt::format(u8"{}", e->id()->id()),
-                   fmt::format(u8"{}", e->parent_id()->id()), // Or id, unless the metadata is being queried
+                   fmt::format(u8"{}", e.id()->id()),
+                   fmt::format(u8"{}", e.parent_id()->id()), // Or id, unless the metadata is being queried
                    std::u8string{dc_title},
                    std::u8string{upnp_class},
-                   (*e->resources()) | views::transform([](Resource const* db_res) {
+                   (*e.resources()) | views::transform([](Resource const* db_res) {
                        return resource{
                            std::u8string{get_u8_string_view(*(db_res->protocol_info()))},
                            std::u8string{get_u8_string_view(*(db_res->location()))},
