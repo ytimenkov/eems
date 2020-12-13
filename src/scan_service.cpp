@@ -44,12 +44,12 @@ auto get_upnp_class(std::u8string_view mime_type) -> std::u8string_view
         return u8"object.item";
 }
 
-auto create_u8_string(std::u8string_view data, flatbuffers::FlatBufferBuilder& builder)
+inline auto create_u8_string(std::u8string_view data, flatbuffers::FlatBufferBuilder& builder)
 {
     return builder.CreateVector(reinterpret_cast<uint8_t const*>(data.data()), data.length());
 }
 
-auto scan_service::scan_directory(fs::path const& path)
+auto scan_service::scan_directory(fs::path const& path, int64_t& resource_id)
     -> scan_service::scan_result
 {
     spdlog::debug("Scanning: {}", path);
@@ -70,21 +70,39 @@ auto scan_service::scan_directory(fs::path const& path)
         if (!mime_type)
             continue;
 
-        auto builder = flatbuffers::FlatBufferBuilder{};
-        auto dc_title = create_u8_string(item.path().filename().generic_u8string(), builder);
-        auto upnp_class = create_u8_string(get_upnp_class(*mime_type), builder);
+        std::vector<flatbuffers::Offset<ResourceRef>> item_resources;
+        flatbuffers::FlatBufferBuilder fbb{};
 
         // Main resource.
-        auto protocol_info = create_u8_string(fmt::format(u8"http-get:*:{}:*", *mime_type), builder);
-        auto location = create_u8_string(item.path().generic_u8string(), builder);
-        auto main_resource = CreateResource(builder, protocol_info, location);
+        {
+            flatbuffers::FlatBufferBuilder resource_fbb{};
+            auto location = create_u8_string(item.path().generic_u8string(), resource_fbb);
+            auto mime = create_u8_string(*mime_type, resource_fbb);
 
-        auto resources = builder.CreateVector(std::vector{main_resource});
+            ResourceBuilder resource_builder{resource_fbb};
+            resource_builder.add_location(location);
+            resource_builder.add_mime_type(mime);
+            resource_fbb.Finish(resource_builder.Finish());
+            auto resource_key = ResourceKey{resource_id++};
+            result.resources.emplace_back(resource_key, resource_fbb.Release());
 
-        auto item_builder = MediaItemBuilder(builder);
+            auto key = serialize_key(resource_key);
+            spdlog::debug("Assigning resource key: {}", resource_key.id());
+            auto key_off = fbb.CreateVector(reinterpret_cast<uint8_t const*>(key.data()), key.length());
+            auto protocol_info = create_u8_string(fmt::format(u8"http-get:*:{}:*", *mime_type), fbb);
+            ResourceRefBuilder ref_builder{fbb};
+            ref_builder.add_ref(key_off);
+            ref_builder.add_protocol_info(protocol_info);
+            item_resources.emplace_back(ref_builder.Finish());
+        }
+        auto dc_title = create_u8_string(item.path().filename().generic_u8string(), fbb);
+        auto upnp_class = create_u8_string(get_upnp_class(*mime_type), fbb);
+        auto resources_off = fbb.CreateVector(item_resources);
+
+        auto item_builder = MediaItemBuilder(fbb);
         item_builder.add_dc_title(dc_title);
         item_builder.add_upnp_class(upnp_class);
-        item_builder.add_resources(resources);
+        item_builder.add_resources(resources_off);
         // Add keys to be updated later.
         {
             auto item_id = ItemKey{};
@@ -94,10 +112,10 @@ auto scan_service::scan_directory(fs::path const& path)
             auto parent_id = ContainerKey{};
             item_builder.add_parent_id(&parent_id);
         }
-        builder.Finish(item_builder.Finish());
-        result.items.emplace_back(builder.Release());
+        fbb.Finish(item_builder.Finish());
+        result.items.emplace_back(fbb.Release());
 
-        spdlog::info("Discovered media item [{}] at {}", reinterpret_cast<std::string_view const&>(*mime_type), item.path());
+        spdlog::info("Discovered media item [{}] at {}", to_byte_range(*mime_type), item.path());
     }
     return result;
 }
@@ -106,13 +124,11 @@ auto scan_service::scan_all(fs::path const& root, store_service& store) -> void
 {
     auto directories = std::vector<fs::path>{root};
     auto parent_id = std::string{"0"};
+    auto resource_id = store.get_next_id<ResourceKey>();
     while (!directories.empty())
     {
-        auto scan_result = scan_directory(directories.back());
-        for (auto& item : scan_result.items)
-        {
-            store.put_item({}, std::move(item));
-        }
+        auto scan_result = scan_directory(directories.back(), resource_id);
+        store.put_items({}, std::move(scan_result.items), std::move(scan_result.resources));
         directories.pop_back();
         ranges::push_back(directories, scan_result.directories);
     }

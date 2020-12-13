@@ -8,9 +8,14 @@ struct ItemKey {
     id: int64;
 }
 
+struct ResourceKey {
+    id: int64;
+}
+
 union KeyUnion {
     ContainerKey,
     ItemKey,
+    ResourceKey,
 }
 
 table LibraryKey {
@@ -23,8 +28,13 @@ table Container {
 }
 
 table Resource {
-    protocol_info: [ubyte];
     location: [ubyte];
+    mime_type: [ubyte];
+}
+
+table ResourceRef {
+    ref: [ubyte] (nested_flatbuffer: "LibraryKey", required);
+    protocol_info: [ubyte];
 }
 
 table MediaItem {
@@ -32,7 +42,7 @@ table MediaItem {
     parent_id: ContainerKey;
     dc_title: [ubyte];
     upnp_class: [ubyte];
-    resources: [Resource];
+    resources: [ResourceRef];
 }
 
 root_type MediaItem;
