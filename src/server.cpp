@@ -78,6 +78,11 @@ auto server::handle_connections(net::ip::tcp::socket socket) -> net::awaitable<v
                     co_await content_service_.handle_request(stream, std::move(req), std::move(sub_path));
                     continue;
                 }
+                else
+                {
+                    spdlog::debug("Not found: {}", *begin);
+                    exceptional_error = make_error_response(http::status::not_found, "Not found", req);
+                }
             }
             catch (http_error const& e)
             {
