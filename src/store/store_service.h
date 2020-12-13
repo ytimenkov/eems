@@ -39,6 +39,11 @@ inline auto to_byte_range(std::u8string_view u8_view) -> std::string_view
     return std::string_view{reinterpret_cast<char const*>(u8_view.data()), u8_view.size()};
 }
 
+inline auto read_path(flatbuffers::Vector<uint8_t> const& data)
+{
+    return reinterpret_cast<fs::path::value_type const*>(data.data());
+}
+
 class store_service
 {
 public:

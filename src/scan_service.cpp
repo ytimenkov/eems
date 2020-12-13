@@ -49,6 +49,13 @@ inline auto create_u8_string(std::u8string_view data, flatbuffers::FlatBufferBui
     return builder.CreateVector(reinterpret_cast<uint8_t const*>(data.data()), data.length());
 }
 
+inline auto store_path(fs::path const& path, flatbuffers::FlatBufferBuilder& fbb)
+{
+    static_assert(sizeof(fs::path::value_type) == sizeof(uint8_t));
+    auto const& str = path.native();
+    return fbb.CreateVector(reinterpret_cast<uint8_t const*>(str.c_str()), str.length() + 1);
+}
+
 auto scan_service::scan_directory(fs::path const& path, int64_t& resource_id)
     -> scan_service::scan_result
 {
@@ -76,7 +83,7 @@ auto scan_service::scan_directory(fs::path const& path, int64_t& resource_id)
         // Main resource.
         {
             flatbuffers::FlatBufferBuilder resource_fbb{};
-            auto location = create_u8_string(item.path().generic_u8string(), resource_fbb);
+            auto location = store_path(item.path(), resource_fbb);
             auto mime = create_u8_string(*mime_type, resource_fbb);
 
             ResourceBuilder resource_builder{resource_fbb};
