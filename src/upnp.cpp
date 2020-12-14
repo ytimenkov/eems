@@ -68,10 +68,6 @@ auto upnp_service::handle_cds_browse(tcp_stream& stream, http_request&& req, soa
     didl_root.append_attribute("xmlns:upnp").set_value("urn:schemas-upnp-org:metadata-1-0/upnp/");
     didl_root.append_attribute("xmlns:dc").set_value("http://purl.org/dc/elements/1.1/");
 
-    // TODO: Here there are no checks for case when field doesn't exist and
-    // pointers are dereferenced immediately. This is because all fields are
-    // optional in the flatbuffers and we need to have validation at some point:
-    // either when reading from DB or throughout the code.
     auto contents = store_service_.list(ContainerKey{parent_id});
     auto count = ranges::accumulate(contents, std::size_t{0}, [&didl_root, content_base](std::size_t count, MediaItem const& item) {
         auto node = didl_root.append_child("item");
@@ -79,10 +75,17 @@ auto upnp_service::handle_cds_browse(tcp_stream& stream, http_request&& req, soa
 
         if (auto resources = item.resources(); resources)
         {
-            ranges::for_each(*resources, [&node, content_base](ResourceRef const* r) {
-                auto res = node.append_child("res");
-                res.append_attribute("protocolInfo").set_value(as_cstring<char>(*r->protocol_info()));
-                res.text().set(fmt::format("{}{}", content_base, r->ref_nested_root()->key_as_ResourceKey()->id()).c_str());
+            ranges::for_each(*resources, [&node, &item, content_base](ResourceRef const* r) {
+                if (auto res_key = r->ref_nested_root()->key_as_ResourceKey(); res_key)
+                {
+                    auto res = node.append_child("res");
+                    res.append_attribute("protocolInfo").set_value(as_cstring<char>(*r->protocol_info()));
+                    res.text().set(fmt::format("{}{}", content_base, res_key->id()).c_str());
+                }
+                else
+                {
+                    spdlog::error("Resource ref has no valid key: {}", item.id()->id());
+                }
             });
         }
         return ++count;

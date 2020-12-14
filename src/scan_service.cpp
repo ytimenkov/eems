@@ -119,7 +119,6 @@ auto scan_service::scan_directory(fs::path const& path, int64_t& resource_id)
 auto scan_service::scan_all(fs::path const& root, store_service& store) -> void
 {
     auto directories = std::vector<fs::path>{root};
-    auto parent_id = std::string{"0"};
     auto resource_id = store.get_next_id<ResourceKey>();
     while (!directories.empty())
     {

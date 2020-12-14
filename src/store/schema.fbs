@@ -34,14 +34,14 @@ table Resource {
 
 table ResourceRef {
     ref: [ubyte] (nested_flatbuffer: "LibraryKey", required);
-    protocol_info: [ubyte];
+    protocol_info: [ubyte] (required);
 }
 
 table MediaItem {
-    id: ItemKey;
-    parent_id: ContainerKey;
-    dc_title: [ubyte];
-    upnp_class: [ubyte];
+    id: ItemKey (required);
+    parent_id: ContainerKey (required);
+    dc_title: [ubyte] (required);
+    upnp_class: [ubyte]  (required);
     resources: [ResourceRef];
 }
 

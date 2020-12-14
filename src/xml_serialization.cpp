@@ -81,12 +81,6 @@ auto serialize_common_fields(pugi::xml_node& node, MediaItem const& elem) -> voi
     node.append_child("upnp:class").text().set(as_cstring<char>(*elem.upnp_class()));
 }
 
-// auto serialize(pugi::xml_node& node, std::u8string_view content_base, container const& elem)
-// {
-//     auto container = node.append_child("container");
-//     serialize_common_fields(container, elem);
-// }
-
 auto browse_response(pugi::xml_document const& didl_doc, std::size_t count) -> beast::flat_buffer
 {
     beast::flat_buffer result;
