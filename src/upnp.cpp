@@ -1,16 +1,25 @@
 #include "upnp.h"
 
-#include "directory_service.h"
 #include "soap.h"
+#include "spirit.h"
+#include "store/fb_converters.h"
 #include "xml_serialization.h"
 
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
 #include <boost/beast/version.hpp>
+#include <range/v3/algorithm/for_each.hpp>
+#include <range/v3/numeric/accumulate.hpp>
 #include <spdlog/spdlog.h>
 
 namespace eems
 {
+enum class browse_flag
+{
+    metadata,
+    direct_children,
+};
+
 auto respond_with_buffer(tcp_stream& stream, http_request const& req,
                          beast::flat_buffer buffer, std::string_view mime_type)
     -> net::awaitable<void>
@@ -31,7 +40,17 @@ auto respond_with_buffer(tcp_stream& stream, http_request const& req,
 auto upnp_service::handle_cds_browse(tcp_stream& stream, http_request&& req, soap_action_info const& soap_req)
     -> net::awaitable<void>
 {
-    auto object_id = reinterpret_cast<char8_t const*>(soap_req.params.child_value("ObjectID"));
+    // TODO: There are filter and search criteria and start index / count
+    // TODO: Also returns dumb NumberReturned value and TotalMatches and UpdateID
+
+    int64_t parent_id;
+    if (auto const id = soap_req.params.child_value("ObjectID"); !parse(std::string_view{id}, x3::int64, parent_id))
+    {
+        // TODO: find out proper exception type.
+        throw std::runtime_error(fmt::format("Invalid id: {}", id));
+    }
+
+#if 0
     auto const browse_flag = [flag = std::string_view{soap_req.params.child_value("BrowseFlag")}]() {
         if (flag == "BrowseDirectChildren")
             return browse_flag::direct_children;
@@ -41,9 +60,35 @@ auto upnp_service::handle_cds_browse(tcp_stream& stream, http_request&& req, soa
             // TODO: Here we can send SOAP error instead. Fault or so...
             throw http_error{http::status::bad_request, "Invalid BrowseFlag"};
     }();
-    auto results = directory_service_.browse(object_id, browse_flag);
+#endif
 
-    co_await respond_with_buffer(stream, req, list_response(results, u8"http://localhost:8000/content/"), "text/xml");
+    auto content_base = "http://localhost:8000/content/";
+
+    auto [didl_doc, didl_root] = generate_preamble("DIDL-Lite", "urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/");
+    didl_root.append_attribute("xmlns:upnp").set_value("urn:schemas-upnp-org:metadata-1-0/upnp/");
+    didl_root.append_attribute("xmlns:dc").set_value("http://purl.org/dc/elements/1.1/");
+
+    // TODO: Here there are no checks for case when field doesn't exist and
+    // pointers are dereferenced immediately. This is because all fields are
+    // optional in the flatbuffers and we need to have validation at some point:
+    // either when reading from DB or throughout the code.
+    auto contents = store_service_.list(ContainerKey{parent_id});
+    auto count = ranges::accumulate(contents, std::size_t{0}, [&didl_root, content_base](std::size_t count, MediaItem const& item) {
+        auto node = didl_root.append_child("item");
+        serialize_common_fields(node, item);
+
+        if (auto resources = item.resources(); resources)
+        {
+            ranges::for_each(*resources, [&node, content_base](ResourceRef const* r) {
+                auto res = node.append_child("res");
+                res.append_attribute("protocolInfo").set_value(as_cstring<char>(*r->protocol_info()));
+                res.text().set(fmt::format("{}{}", content_base, r->ref_nested_root()->key_as_ResourceKey()->id()).c_str());
+            });
+        }
+        return ++count;
+    });
+
+    co_await respond_with_buffer(stream, req, browse_response(didl_doc, count), "text/xml");
 }
 
 auto upnp_service::handle_upnp_request(tcp_stream& stream, http_request&& req, fs::path sub_path)

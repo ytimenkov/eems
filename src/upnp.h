@@ -1,9 +1,9 @@
 #ifndef EEMS_UPNP_H
 #define EEMS_UPNP_H
 
-#include "directory_service.h"
 #include "fs.h"
 #include "http_messages.h"
+#include "store/store_service.h"
 
 namespace eems
 {
@@ -11,8 +11,8 @@ struct soap_action_info;
 class upnp_service
 {
 public:
-    explicit upnp_service(directory_service& directory_service)
-        : directory_service_{directory_service}
+    explicit upnp_service(store_service& store_service)
+        : store_service_{store_service}
     {
     }
 
@@ -24,7 +24,7 @@ private:
         -> net::awaitable<void>;
 
 private:
-    directory_service& directory_service_;
+    store_service& store_service_;
 };
 }
 

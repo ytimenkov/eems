@@ -1,6 +1,7 @@
 #include "scan_service.h"
 
 #include "ranges.h"
+#include "store/fb_converters.h"
 
 #include <fmt/ostream.h>
 #include <range/v3/action/push_back.hpp>
@@ -44,18 +45,6 @@ auto get_upnp_class(std::u8string_view mime_type) -> std::u8string_view
         return u8"object.item";
 }
 
-inline auto create_u8_string(std::u8string_view data, flatbuffers::FlatBufferBuilder& builder)
-{
-    return builder.CreateVector(reinterpret_cast<uint8_t const*>(data.data()), data.length());
-}
-
-inline auto store_path(fs::path const& path, flatbuffers::FlatBufferBuilder& fbb)
-{
-    static_assert(sizeof(fs::path::value_type) == sizeof(uint8_t));
-    auto const& str = path.native();
-    return fbb.CreateVector(reinterpret_cast<uint8_t const*>(str.c_str()), str.length() + 1);
-}
-
 auto scan_service::scan_directory(fs::path const& path, int64_t& resource_id)
     -> scan_service::scan_result
 {
@@ -83,8 +72,8 @@ auto scan_service::scan_directory(fs::path const& path, int64_t& resource_id)
         // Main resource.
         {
             flatbuffers::FlatBufferBuilder resource_fbb{};
-            auto location = store_path(item.path(), resource_fbb);
-            auto mime = create_u8_string(*mime_type, resource_fbb);
+            auto location = put_string(item.path().native(), resource_fbb);
+            auto mime = put_string_view(*mime_type, resource_fbb);
 
             ResourceBuilder resource_builder{resource_fbb};
             resource_builder.add_location(location);
@@ -96,14 +85,14 @@ auto scan_service::scan_directory(fs::path const& path, int64_t& resource_id)
             auto key = serialize_key(resource_key);
             spdlog::debug("Assigning resource key: {}", resource_key.id());
             auto key_off = fbb.CreateVector(reinterpret_cast<uint8_t const*>(key.data()), key.length());
-            auto protocol_info = create_u8_string(fmt::format(u8"http-get:*:{}:*", *mime_type), fbb);
+            auto protocol_info = put_string(fmt::format(u8"http-get:*:{}:*", *mime_type), fbb);
             ResourceRefBuilder ref_builder{fbb};
             ref_builder.add_ref(key_off);
             ref_builder.add_protocol_info(protocol_info);
             item_resources.emplace_back(ref_builder.Finish());
         }
-        auto dc_title = create_u8_string(item.path().filename().generic_u8string(), fbb);
-        auto upnp_class = create_u8_string(get_upnp_class(*mime_type), fbb);
+        auto dc_title = put_string(item.path().filename().generic_u8string(), fbb);
+        auto upnp_class = put_string_view(get_upnp_class(*mime_type), fbb);
         auto resources_off = fbb.CreateVector(item_resources);
 
         auto item_builder = MediaItemBuilder(fbb);
@@ -122,7 +111,7 @@ auto scan_service::scan_directory(fs::path const& path, int64_t& resource_id)
         fbb.Finish(item_builder.Finish());
         result.items.emplace_back(fbb.Release());
 
-        spdlog::info("Discovered media item [{}] at {}", to_byte_range(*mime_type), item.path());
+        spdlog::info("Discovered media item [{}] at {}", loggable_u8_view(*mime_type), item.path());
     }
     return result;
 }

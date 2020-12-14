@@ -3,6 +3,7 @@ add_library(store)
 find_program(FLATC_PATH flatc)
 
 target_sources(store PRIVATE
+    fb_converters.h
     store_service.cpp
     store_service.h
     )

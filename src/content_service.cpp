@@ -1,6 +1,7 @@
 #include "content_service.h"
 
 #include "spirit.h"
+#include "store/fb_converters.h"
 
 #include <boost/beast/http/file_body.hpp>
 #include <boost/beast/http/write.hpp>
@@ -27,7 +28,7 @@ auto content_service::handle_request(tcp_stream& stream, http_request&& req, fs:
         co_await http::async_write(stream, *make_error_response(http::status::not_found, sub_path.c_str(), req));
         co_return;
     }
-    auto location = read_path(*resource->location());
+    auto location = as_cstring<fs::path::value_type>(*resource->location());
 
     spdlog::debug("Serving {} (from {})", sub_path, location);
 
@@ -35,7 +36,7 @@ auto content_service::handle_request(tcp_stream& stream, http_request&& req, fs:
     res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
     if (auto mime_type = resource->mime_type(); mime_type)
     {
-        res.set(http::field::content_type, get_string_view(*mime_type));
+        res.set(http::field::content_type, as_string_view<char>(*mime_type));
     }
     res.keep_alive(req.keep_alive());
     beast::error_code ec;

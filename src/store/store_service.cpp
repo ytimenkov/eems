@@ -1,6 +1,7 @@
 #include "store_service.h"
 
 #include "../ranges.h"
+#include "fb_converters.h"
 
 #include <leveldb/write_batch.h>
 #include <range/v3/algorithm/find.hpp>

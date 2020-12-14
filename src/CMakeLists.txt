@@ -8,8 +8,6 @@ target_sources(eems PRIVATE
     config.h
     content_service.cpp
     content_service.h
-    directory_service.cpp
-    directory_service.h
     fs.h
     http_messages.cpp
     http_messages.h

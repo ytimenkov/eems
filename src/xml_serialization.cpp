@@ -2,9 +2,9 @@
 
 #include "net.h"
 #include "ranges.h"
+#include "store/fb_converters.h"
 
 #include <fmt/core.h>
-#include <pugixml.hpp>
 #include <range/v3/algorithm/for_each.hpp>
 #include <spdlog/spdlog.h>
 
@@ -30,7 +30,7 @@ private:
     beast::flat_buffer& buffer;
 };
 
-auto append_null(beast::flat_buffer& buffer)
+inline auto append_null(beast::flat_buffer& buffer)
 {
     auto buf = buffer.prepare(1);
     constexpr auto null_char = '\0';
@@ -39,6 +39,7 @@ auto append_null(beast::flat_buffer& buffer)
 }
 
 auto generate_preamble(char const* root_element, char const* root_ns)
+    -> std::tuple<pugi::xml_document, pugi::xml_node>
 {
     auto result = std::tuple<pugi::xml_document, pugi::xml_node>{};
     auto& [doc, root] = result;
@@ -70,46 +71,24 @@ auto root_device_description(char const* url_base) -> beast::flat_buffer
     return result;
 }
 
-auto serialize_common_fields(pugi::xml_node& node, object const& elem) -> void
+auto serialize_common_fields(pugi::xml_node& node, MediaItem const& elem) -> void
 {
-    node.append_attribute("id").set_value(reinterpret_cast<char const*>(elem.id.c_str()));
-    node.append_attribute("parentID").set_value(reinterpret_cast<char const*>(elem.parent_id.c_str()));
+    node.append_attribute("id").set_value(elem.id()->id());
+    node.append_attribute("parentID").set_value(elem.parent_id()->id());
     node.append_attribute("restricted").set_value("1");
 
-    node.append_child("dc:title").text().set(reinterpret_cast<char const*>(elem.dc_title.c_str()));
-    node.append_child("upnp:class").text().set(reinterpret_cast<char const*>(elem.upnp_class.c_str()));
+    node.append_child("dc:title").text().set(as_cstring<char>(*elem.dc_title()));
+    node.append_child("upnp:class").text().set(as_cstring<char>(*elem.upnp_class()));
 }
 
-auto serialize(pugi::xml_node& node, std::u8string_view content_base, item const& elem)
+// auto serialize(pugi::xml_node& node, std::u8string_view content_base, container const& elem)
+// {
+//     auto container = node.append_child("container");
+//     serialize_common_fields(container, elem);
+// }
+
+auto browse_response(pugi::xml_document const& didl_doc, std::size_t count) -> beast::flat_buffer
 {
-    auto item = node.append_child("item");
-    serialize_common_fields(item, elem);
-
-    ranges::for_each(elem.resources, [&item, content_base](resource const& r) {
-        auto res = item.append_child("res");
-        res.append_attribute("protocolInfo").set_value(reinterpret_cast<char const*>(r.protocol_info.c_str()));
-        res.text().set(reinterpret_cast<char const*>(fmt::format(u8"{}{}", content_base, r.url).c_str()));
-    });
-}
-
-auto serialize(pugi::xml_node& node, std::u8string_view content_base, container const& elem)
-{
-    auto container = node.append_child("container");
-    serialize_common_fields(container, elem);
-}
-
-auto list_response(std::vector<directory_element> const& contents, std::u8string_view content_base)
-    -> beast::flat_buffer
-{
-    auto [didl_doc, didl_root] = generate_preamble("DIDL-Lite", "urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/");
-    didl_root.append_attribute("xmlns:upnp").set_value("urn:schemas-upnp-org:metadata-1-0/upnp/");
-    didl_root.append_attribute("xmlns:dc").set_value("http://purl.org/dc/elements/1.1/");
-
-    for (auto const& elem : contents)
-    {
-        std::visit([&didl_root, content_base](auto const& elem) { serialize(didl_root, content_base, elem); }, elem);
-    }
-
     beast::flat_buffer result;
     buffer_writer writer{result};
 
@@ -128,7 +107,7 @@ auto list_response(std::vector<directory_element> const& contents, std::u8string
     // TODO: This is service type / action + Response
     auto response = soap_body.append_child("u:BrowseResponse");
     response.append_attribute("xmlns:u").set_value("urn:schemas-upnp-org:service:ContentDirectory:1");
-    response.append_child("NumberReturned").text().set(contents.size());
+    response.append_child("NumberReturned").text().set(count);
     response.append_child("TotalMatches").text().set("0");
     response.append_child("UpdateID").text().set("0");
     response.append_child("Result").text().set(static_cast<char const*>(result.data().data()));

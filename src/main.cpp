@@ -20,8 +20,7 @@ int main(int argc, char const* argv[])
     spdlog::info("Configs: {}", config.data.content_directories);
 
     auto store_service = eems::store_service{config.db};
-    auto directory_service = eems::directory_service{store_service};
-    auto upnp_service = eems::upnp_service{directory_service};
+    auto upnp_service = eems::upnp_service{store_service};
     auto content_service = eems::content_service{store_service};
     auto server = eems::server{upnp_service, content_service};
     auto scan_service = eems::scan_service{};

@@ -13,36 +13,6 @@
 namespace eems
 {
 
-template <typename TKey>
-auto serialize_key(TKey const& key) -> std::string
-{
-    auto fbb = flatbuffers::FlatBufferBuilder{};
-    auto key_buffer = CreateLibraryKey(fbb, KeyUnionTraits<TKey>::enum_value, fbb.CreateStruct(key).Union());
-    fbb.Finish(key_buffer);
-    return std::string{reinterpret_cast<char const*>(fbb.GetBufferPointer()), fbb.GetSize()};
-}
-
-inline auto get_u8_string_view(flatbuffers::Vector<uint8_t> const& vec)
-    -> std::u8string_view
-{
-    return {reinterpret_cast<char8_t const*>(vec.Data()), vec.size()};
-}
-
-inline auto get_string_view(flatbuffers::Vector<uint8_t> const& vec)
-    -> std::string_view
-{
-    return {reinterpret_cast<char const*>(vec.Data()), vec.size()};
-}
-
-inline auto to_byte_range(std::u8string_view u8_view) -> std::string_view
-{
-    return std::string_view{reinterpret_cast<char const*>(u8_view.data()), u8_view.size()};
-}
-
-inline auto read_path(flatbuffers::Vector<uint8_t> const& data)
-{
-    return reinterpret_cast<fs::path::value_type const*>(data.data());
-}
 
 class store_service
 {
