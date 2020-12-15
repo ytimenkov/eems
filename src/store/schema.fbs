@@ -1,10 +1,6 @@
 namespace eems;
 
-struct ContainerKey {
-    id: int64;
-}
-
-struct ItemKey {
+struct ObjectKey {
     id: int64;
 }
 
@@ -13,18 +9,12 @@ struct ResourceKey {
 }
 
 union KeyUnion {
-    ContainerKey,
-    ItemKey,
+    ObjectKey,
     ResourceKey,
 }
 
 table LibraryKey {
     key: KeyUnion;
-}
-
-table Container {
-    dc_title: [ubyte];
-    objects: [LibraryKey];
 }
 
 table Resource {
@@ -37,12 +27,24 @@ table ResourceRef {
     protocol_info: [ubyte] (required);
 }
 
+table MediaContainer {
+    objects: [LibraryKey];
+}
+
 table MediaItem {
-    id: ItemKey (required);
-    parent_id: ContainerKey (required);
-    dc_title: [ubyte] (required);
-    upnp_class: [ubyte]  (required);
     resources: [ResourceRef];
 }
 
-root_type MediaItem;
+union ObjectUnion {
+    MediaContainer,
+    MediaItem,
+}
+
+table MediaObject {
+    id: ObjectKey (required);
+    parent_id: ObjectKey (required);
+    dc_title: [ubyte] (required);
+    upnp_class: [ubyte]  (required);
+    data: ObjectUnion;
+}
+

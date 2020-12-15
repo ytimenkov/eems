@@ -91,24 +91,26 @@ auto scan_service::scan_directory(fs::path const& path, int64_t& resource_id)
             ref_builder.add_protocol_info(protocol_info);
             item_resources.emplace_back(ref_builder.Finish());
         }
+        auto data_off = CreateMediaItem(fbb, fbb.CreateVector(item_resources));
+
         auto dc_title = put_string(item.path().filename().generic_u8string(), fbb);
         auto upnp_class = put_string_view(get_upnp_class(*mime_type), fbb);
-        auto resources_off = fbb.CreateVector(item_resources);
 
-        auto item_builder = MediaItemBuilder(fbb);
-        item_builder.add_dc_title(dc_title);
-        item_builder.add_upnp_class(upnp_class);
-        item_builder.add_resources(resources_off);
+        auto object_builder = MediaObjectBuilder(fbb);
+        object_builder.add_dc_title(dc_title);
+        object_builder.add_upnp_class(upnp_class);
         // Add keys to be updated later.
         {
-            auto item_id = ItemKey{};
-            item_builder.add_id(&item_id);
+            auto item_id = ObjectKey{};
+            object_builder.add_id(&item_id);
         }
         {
-            auto parent_id = ContainerKey{};
-            item_builder.add_parent_id(&parent_id);
+            auto parent_id = ObjectKey{};
+            object_builder.add_parent_id(&parent_id);
         }
-        fbb.Finish(item_builder.Finish());
+        object_builder.add_data_type(ObjectUnion::MediaItem);
+        object_builder.add_data(data_off.Union());
+        fbb.Finish(object_builder.Finish());
         result.items.emplace_back(fbb.Release());
 
         spdlog::info("Discovered media item [{}] at {}", loggable_u8_view(*mime_type), item.path());

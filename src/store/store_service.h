@@ -13,7 +13,6 @@
 namespace eems
 {
 
-
 class store_service
 {
 public:
@@ -23,7 +22,7 @@ public:
     template <typename TKey>
     auto get_next_id() const -> int64_t;
 
-    auto put_items(ContainerKey parent,
+    auto put_items(ObjectKey parent,
                    std::vector<flatbuffers::DetachedBuffer>&& items,
                    std::vector<std::tuple<ResourceKey, flatbuffers::DetachedBuffer>>&& resources) -> void;
 
@@ -45,9 +44,9 @@ public:
             explicit cursor(leveldb::Iterator* iter) noexcept
                 : iter_{iter} {}
 
-            auto read() const -> MediaItem const&
+            auto read() const -> MediaObject const&
             {
-                return *flatbuffers::GetRoot<MediaItem>(iter_->value().data());
+                return *flatbuffers::GetRoot<MediaObject>(iter_->value().data());
             }
 
             auto next() noexcept -> void
@@ -57,7 +56,7 @@ public:
 
             auto equal(ranges::default_sentinel_t) const -> bool
             {
-                return !iter_->Valid() || flatbuffers::GetRoot<LibraryKey>(iter_->key().data())->key_type() != KeyUnion::ItemKey;
+                return !iter_->Valid() || flatbuffers::GetRoot<LibraryKey>(iter_->key().data())->key_type() != KeyUnion::ObjectKey;
             }
 
         private:
@@ -70,7 +69,7 @@ public:
         std::unique_ptr<leveldb::Iterator> iter_;
     };
 
-    auto list(ContainerKey id) -> list_result_view;
+    auto list(ObjectKey id) -> list_result_view;
 
     struct resource_result
     {

@@ -63,13 +63,7 @@ private:
 
 // Define comparison operators for keys this way because those classes are
 // generated and there is no way to add body to them.
-inline auto
-operator<=>(ContainerKey const& lhs, ContainerKey const& rhs)
-{
-    return lhs.id() <=> rhs.id();
-}
-
-inline auto operator<=>(ItemKey const& lhs, ItemKey const& rhs)
+inline auto operator<=>(ObjectKey const& lhs, ObjectKey const& rhs)
 {
     return lhs.id() <=> rhs.id();
 }
@@ -90,10 +84,8 @@ int store_service::fb_comparator::Compare(leveldb::Slice const& lhs_s, leveldb::
     auto const cmp = [&]() {
         switch (lhs->key_type())
         {
-        case KeyUnion::ContainerKey:
-            return *lhs->key_as<ContainerKey>() <=> *rhs->key_as<ContainerKey>();
-        case KeyUnion::ItemKey:
-            return *lhs->key_as<ItemKey>() <=> *rhs->key_as<ItemKey>();
+        case KeyUnion::ObjectKey:
+            return *lhs->key_as<ObjectKey>() <=> *rhs->key_as<ObjectKey>();
         case KeyUnion::ResourceKey:
             return *lhs->key_as<ResourceKey>() <=> *rhs->key_as<ResourceKey>();
         case KeyUnion::NONE:
@@ -161,7 +153,7 @@ inline auto store_service::create_iterator() const -> std::unique_ptr<::leveldb:
     return std::unique_ptr<leveldb::Iterator>{db_->NewIterator(leveldb::ReadOptions{})};
 }
 
-auto store_service::put_items(ContainerKey parent,
+auto store_service::put_items(ObjectKey parent,
                               std::vector<flatbuffers::DetachedBuffer>&& items,
                               std::vector<std::tuple<ResourceKey, flatbuffers::DetachedBuffer>>&& resources) -> void
 {
@@ -175,15 +167,15 @@ auto store_service::put_items(ContainerKey parent,
             leveldb::Slice{reinterpret_cast<char const*>(res_buf.data()), res_buf.size()});
     }
 
-    for (auto&& [item_buf, item_id] : views::zip(items, views::iota(get_next_id<ItemKey>())))
+    for (auto&& [item_buf, item_id] : views::zip(items, views::iota(get_next_id<ObjectKey>())))
     {
-        auto item = GetMutableMediaItem(item_buf.data());
+        auto item = flatbuffers::GetMutableRoot<MediaObject>(item_buf.data());
         item->mutable_id()->mutate_id(item_id);
 
         spdlog::debug("Adding new item with key: {}", item_id);
 
         batch.Put(
-            serialize_key(ItemKey{item_id}),
+            serialize_key(ObjectKey{item_id}),
             leveldb::Slice{reinterpret_cast<char const*>(item_buf.data()), item_buf.size()});
     }
     auto status = db_->Write(leveldb::WriteOptions{}, &batch);
@@ -204,10 +196,10 @@ auto store_service::put_items(ContainerKey parent,
     // reserve certain prefix except for / (or drive letter) for virtual listings...
 }
 
-auto store_service::list(ContainerKey id) -> store_service::list_result_view
+auto store_service::list(ObjectKey id) -> store_service::list_result_view
 {
     auto it = create_iterator();
-    it->Seek(serialize_key(ItemKey{0}));
+    it->Seek(serialize_key(ObjectKey{0}));
     return list_result_view{std::move(it)};
 }
 

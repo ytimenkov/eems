@@ -15,7 +15,7 @@ auto browse_response(pugi::xml_document const& didl_doc, std::size_t count) -> b
 auto generate_preamble(char const* root_element, char const* root_ns)
     -> std::tuple<pugi::xml_document, pugi::xml_node>;
 
-auto serialize_common_fields(pugi::xml_node& node, MediaItem const& elem) -> void;
+auto serialize(pugi::xml_node& didl_root, std::string_view content_base, MediaObject const& object) -> bool;
 }
 
 #endif
