@@ -27,8 +27,12 @@ table ResourceRef {
     protocol_info: [ubyte] (required);
 }
 
+table MediaObjectRef {
+    ref: [ubyte] (nested_flatbuffer: "LibraryKey", required);
+}
+
 table MediaContainer {
-    objects: [LibraryKey];
+    objects: [MediaObjectRef];
 }
 
 table MediaItem {

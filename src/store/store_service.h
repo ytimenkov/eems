@@ -29,8 +29,9 @@ public:
     class list_result_view : public ranges::view_facade<list_result_view>
     {
     public:
-        explicit list_result_view(std::unique_ptr<leveldb::Iterator>&& iter)
-            : iter_{std::move(iter)}
+        explicit list_result_view(std::unique_ptr<leveldb::Iterator>&& db_it, std::vector<std::string>&& objects)
+            : db_it_{std::move(db_it)},
+              objects_{std::move(objects)}
         {
         }
 
@@ -41,32 +42,41 @@ public:
         {
         public:
             cursor() noexcept = default;
-            explicit cursor(leveldb::Iterator* iter) noexcept
-                : iter_{iter} {}
+            explicit cursor(std::vector<std::string>::const_iterator key_it, leveldb::Iterator* db_it) noexcept
+                : key_it_{key_it}, db_it_{db_it} {}
 
-            auto read() const -> MediaObject const&
-            {
-                return *flatbuffers::GetRoot<MediaObject>(iter_->value().data());
-            }
+            auto read() const -> MediaObject const&;
 
             auto next() noexcept -> void
             {
-                iter_->Next();
+                ++key_it_;
             }
 
-            auto equal(ranges::default_sentinel_t) const -> bool
+            auto equal(cursor const& other) const noexcept -> bool
             {
-                return !iter_->Valid() || flatbuffers::GetRoot<LibraryKey>(iter_->key().data())->key_type() != KeyUnion::ObjectKey;
+                return key_it_ == other.key_it_;
+            }
+
+            auto distance_to(cursor const& other) const
+            {
+                return ranges::distance(key_it_, other.key_it_);
+            }
+
+            auto advance(ranges::iter_difference_t<std::vector<std::string>> n) noexcept -> void
+            {
+                return ranges::advance(key_it_, n);
             }
 
         private:
-            leveldb::Iterator* iter_{nullptr};
+            std::vector<std::string>::const_iterator key_it_{};
+            leveldb::Iterator* db_it_{nullptr};
         };
 
-        auto begin_cursor() const { return cursor{iter_.get()}; }
-        auto end_cursor() const { return ranges::default_sentinel; }
+        auto begin_cursor() const { return cursor{objects_.begin(), db_it_.get()}; }
+        auto end_cursor() const { return cursor{objects_.end(), nullptr}; }
 
-        std::unique_ptr<leveldb::Iterator> iter_;
+        std::unique_ptr<leveldb::Iterator> db_it_;
+        std::vector<std::string> objects_;
     };
 
     auto list(ObjectKey id) -> list_result_view;
@@ -89,6 +99,17 @@ private:
     };
 
     auto create_iterator() const -> std::unique_ptr<::leveldb::Iterator>;
+
+    struct container_data
+    {
+        ObjectKey id;
+        ObjectKey parent_id;
+        std::u8string dc_title;
+        std::u8string upnp_class;
+        std::vector<std::string> objects; // Underlying type is the result of serialize_key
+    };
+    auto deserialize_container(std::string const& key, ::leveldb::Iterator& iter) -> container_data;
+    auto serialize_container(container_data const& data) -> flatbuffers::DetachedBuffer;
 
 private:
     fb_comparator comparator_;

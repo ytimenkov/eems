@@ -5,6 +5,7 @@
 
 #include <leveldb/write_batch.h>
 #include <range/v3/algorithm/find.hpp>
+#include <range/v3/range/conversion.hpp>
 #include <range/v3/view/iota.hpp>
 #include <range/v3/view/transform.hpp>
 #include <range/v3/view/zip.hpp>
@@ -112,6 +113,19 @@ store_service::store_service(db_config const& config)
         spdlog::error("Failed to open/create DB: {}", status.ToString());
         throw std::runtime_error(status.ToString());
     }
+
+    container_data root_container{
+        .id{0},
+        .parent_id{-1},
+        .upnp_class{u8"object.item"}};
+    auto container_buf = serialize_container(root_container);
+    status = db_->Put(leveldb::WriteOptions{},
+                      serialize_key(ObjectKey{0}),
+                      leveldb::Slice{reinterpret_cast<char const*>(container_buf.data()), container_buf.size()});
+    if (!status.ok())
+    {
+        throw std::runtime_error("Failed to create root container");
+    }
 }
 
 store_service::~store_service() = default;
@@ -157,6 +171,9 @@ auto store_service::put_items(ObjectKey parent,
                               std::vector<flatbuffers::DetachedBuffer>&& items,
                               std::vector<std::tuple<ResourceKey, flatbuffers::DetachedBuffer>>&& resources) -> void
 {
+    auto const parent_key = serialize_key(parent);
+    auto container_data = deserialize_container(parent_key, *create_iterator());
+
     // Process resources first because items' references to resources need to be updated.
     leveldb::WriteBatch batch{};
 
@@ -173,11 +190,18 @@ auto store_service::put_items(ObjectKey parent,
         item->mutable_id()->mutate_id(item_id);
 
         spdlog::debug("Adding new item with key: {}", item_id);
-
+        auto key = serialize_key(ObjectKey{item_id});
         batch.Put(
-            serialize_key(ObjectKey{item_id}),
+            key,
             leveldb::Slice{reinterpret_cast<char const*>(item_buf.data()), item_buf.size()});
+
+        container_data.objects.emplace_back(std::move(key));
     }
+
+    auto container_buf = serialize_container(container_data);
+    batch.Put(parent_key,
+              leveldb::Slice{reinterpret_cast<char const*>(container_buf.data()), container_buf.size()});
+
     auto status = db_->Write(leveldb::WriteOptions{}, &batch);
     if (!status.ok())
     {
@@ -196,11 +220,25 @@ auto store_service::put_items(ObjectKey parent,
     // reserve certain prefix except for / (or drive letter) for virtual listings...
 }
 
+auto store_service::list_result_view::cursor::read() const -> MediaObject const&
+{
+    db_it_->Seek(*key_it_);
+    if (!db_it_->Valid() || db_it_->key() != *key_it_)
+    {
+        spdlog::error("Inconsistent directory: {}", *key_it_);
+        throw std::runtime_error("DB state is corrupted: non-existing element");
+    }
+    return *flatbuffers::GetRoot<MediaObject>(db_it_->value().data());
+}
+
 auto store_service::list(ObjectKey id) -> store_service::list_result_view
 {
     auto it = create_iterator();
-    it->Seek(serialize_key(ObjectKey{0}));
-    return list_result_view{std::move(it)};
+    auto container_data = deserialize_container(serialize_key(id), *it);
+
+    // static_assert(ranges::random_access_iterator<decltype(ranges::begin(std::declval<list_result_view>()))>);
+
+    return list_result_view{std::move(it), std::move(container_data.objects)};
 }
 
 auto store_service::get_resource(ResourceKey id) -> resource_result
@@ -218,6 +256,66 @@ auto store_service::get_resource(ResourceKey id) -> resource_result
     }
 
     return result;
+}
+
+auto store_service::deserialize_container(std::string const& key, ::leveldb::Iterator& iter) -> container_data
+{
+    iter.Seek(key);
+    if (!iter.Valid() || iter.key() != key)
+    {
+        throw std::runtime_error("Container not found");
+    }
+    auto media_object = flatbuffers::GetRoot<MediaObject>(iter.value().data());
+    if (media_object->data_type() != ObjectUnion::MediaContainer)
+    {
+        throw std::runtime_error(fmt::format("Object is not a container. type={}", media_object->data_type()));
+    }
+    auto container = static_cast<MediaContainer const*>(media_object->data());
+
+    container_data result{
+        .id{*media_object->id()},
+        .parent_id{*media_object->parent_id()},
+        .dc_title{std::u8string{as_string_view<char8_t>(*media_object->dc_title())}},
+        .upnp_class{std::u8string{as_string_view<char8_t>(*media_object->upnp_class())}},
+        .objects{*container->objects() |
+                 views::transform([](MediaObjectRef const* ref) {
+                     return std::string{reinterpret_cast<char const*>(ref->ref()->data()), ref->ref()->size()};
+                 }) |
+                 ranges::to<std::vector>()},
+    };
+
+    return result;
+}
+
+auto store_service::serialize_container(container_data const& data) -> flatbuffers::DetachedBuffer
+{
+    flatbuffers::FlatBufferBuilder fbb{};
+
+    auto container_off = CreateMediaContainer(
+        fbb,
+        fbb.CreateVector(
+            data.objects |
+            views::transform([&fbb](auto const& buf) {
+                return CreateMediaObjectRef(
+                    fbb,
+                    // Don't use put_string here because raw key is serialized
+                    fbb.CreateVector(reinterpret_cast<uint8_t const*>(buf.data()), buf.size()));
+            }) |
+            ranges::to<std::vector>()));
+
+    auto title_off = put_string(data.dc_title, fbb);
+    auto class_off = put_string(data.upnp_class, fbb);
+
+    MediaObjectBuilder builder{fbb};
+    builder.add_id(&data.id);
+    builder.add_parent_id(&data.parent_id);
+    builder.add_dc_title(title_off);
+    builder.add_upnp_class(class_off);
+    builder.add_data_type(ObjectUnion::MediaContainer);
+    builder.add_data(container_off.Union());
+
+    fbb.Finish(builder.Finish());
+    return fbb.Release();
 }
 
 }
