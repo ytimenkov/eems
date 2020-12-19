@@ -14,9 +14,9 @@ class EemsConan(ConanFile):
 
     requires = [
         "boost/1.74.0",
-        "fmt/7.0.3",
+        "fmt/7.1.3",
         "pugixml/1.10",
-        "spdlog/1.8.0",
+        "spdlog/1.8.2",
         "range-v3/0.11.0",
         "toml11/3.6.0",
         "leveldb/1.22",
