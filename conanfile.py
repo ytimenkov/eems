@@ -13,7 +13,7 @@ class EemsConan(ConanFile):
     default_options = {"shared": False, "fPIC": True}
 
     requires = [
-        "boost/1.74.0",
+        "boost/1.75.0",
         "fmt/7.1.3",
         "pugixml/1.10",
         "spdlog/1.8.2",
