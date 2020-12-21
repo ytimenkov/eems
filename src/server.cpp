@@ -11,6 +11,7 @@
 #include <boost/beast/http.hpp>
 #include <boost/beast/version.hpp>
 #include <fmt/ostream.h>
+#include <fmt/ranges.h>
 #include <range/v3/algorithm/find_if_not.hpp>
 #include <range/v3/begin_end.hpp>
 #include <range/v3/iterator.hpp>
@@ -31,6 +32,38 @@ auto parse_target(std::string_view target) -> std::pair<fs::path, std::string_vi
     return {{target, fs::path::format::generic_format}, {}};
 }
 
+struct writer_stream
+{
+    std::string buf;
+    template <typename ConstBuffers>
+    auto write_some(ConstBuffers const& buffers) -> std::size_t
+    {
+        std::size_t bytes_transferred = 0;
+        for (auto it = boost::asio::buffer_sequence_begin(buffers);
+             it != boost::asio::buffer_sequence_end(buffers); ++it)
+        {
+            buf.append(reinterpret_cast<char const*>(it->data()), it->size());
+            bytes_transferred += it->size();
+        }
+        return bytes_transferred;
+    }
+
+    template <typename ConstBuffers>
+    auto write_some(ConstBuffers const& buffers, boost::system::error_code& ec) -> std::size_t
+    {
+        return this->write_some(buffers);
+    }
+};
+
+template <bool isRequest, class Body, class Fields>
+auto request_to_str(http::message<isRequest, Body, Fields> const& req)
+{
+    writer_stream writer{};
+    http::serializer<isRequest, Body, Fields> sr{req};
+    http::write_header(writer, sr);
+    return writer.buf;
+}
+
 auto server::handle_connections(net::ip::tcp::socket socket) -> net::awaitable<void>
 {
     try
@@ -44,7 +77,7 @@ auto server::handle_connections(net::ip::tcp::socket socket) -> net::awaitable<v
             stream.expires_after(std::chrono::seconds(30));
             co_await http::async_read(stream, buffer, req);
 
-            spdlog::debug("Got request: {}", req.target());
+            spdlog::debug("Got request: {}", request_to_str(req));
 
             auto [path, query] = parse_target(req.target());
 
