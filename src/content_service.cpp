@@ -125,7 +125,6 @@ auto content_service::create_response(fs::path const& sub_path, http_request con
 }
 
 auto content_service::handle_request(tcp_stream& stream, http_request&& req, fs::path sub_path)
-    // -> void
     -> net::awaitable<void>
 {
     auto [response, file, size] = create_response(sub_path, req);

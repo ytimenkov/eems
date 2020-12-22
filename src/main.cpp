@@ -1,4 +1,5 @@
 #include "config.h"
+#include "discovery_service.h"
 #include "logging.h"
 #include "scan_service.h"
 #include "server.h"
@@ -19,11 +20,12 @@ int main(int argc, char const* argv[])
 
     spdlog::info("Configs: {}", config.data.content_directories);
 
-    auto store_service = eems::store_service{config.db};
-    auto upnp_service = eems::upnp_service{store_service};
-    auto content_service = eems::content_service{store_service};
-    auto server = eems::server{upnp_service, content_service};
-    auto scan_service = eems::scan_service{};
+    eems::store_service store_service{config.db};
+    eems::upnp_service upnp_service{store_service};
+    eems::content_service content_service{store_service};
+    eems::server server{upnp_service, content_service};
+    eems::discovery_service discovery_service{config.server};
+    eems::scan_service scan_service{};
 
     // TODO: This is temporary:
     for (auto& path : config.data.content_directories)
@@ -37,6 +39,7 @@ int main(int argc, char const* argv[])
     signals.async_wait([&](auto, auto) { io_context.stop(); });
 
     boost::asio::co_spawn(io_context, server.run_server(), boost::asio::detached);
+    boost::asio::co_spawn(io_context, discovery_service.run_service(), boost::asio::detached);
 
     io_context.run();
 

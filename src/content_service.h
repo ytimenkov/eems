@@ -19,7 +19,6 @@ public:
     }
 
     auto handle_request(tcp_stream& stream, http_request&& req, fs::path sub_path)
-        // -> void;
         -> net::awaitable<void>;
 
 private:

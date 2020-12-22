@@ -8,9 +8,12 @@ target_sources(eems PRIVATE
     config.h
     content_service.cpp
     content_service.h
+    discovery_service.cpp
+    discovery_service.h
     fs.h
     http_messages.cpp
     http_messages.h
+    http_serialize.h
     logging.cpp
     logging.h
     main.cpp

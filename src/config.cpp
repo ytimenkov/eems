@@ -1,6 +1,11 @@
 #include "config.h"
 
+#include "net.h"
+
+#include <boost/asio/ip/host_name.hpp>
 #include <boost/program_options.hpp>
+#include <boost/uuid/name_generator.hpp>
+#include <boost/uuid/string_generator.hpp>
 #include <toml.hpp>
 
 namespace eems
@@ -20,6 +25,8 @@ auto load_configuration(int argc, char const* argv[])
 
     auto result = config{};
     auto data = toml::parse(vm["config"].as<fs::path>());
+    auto const& data_table = data.as_table();
+
     auto const& content = toml::find<toml::array>(data, "content");
     for (auto const& table : content)
     {
@@ -28,6 +35,20 @@ auto load_configuration(int argc, char const* argv[])
     }
     auto const& db = toml::find(data, "db");
     result.db.path = static_cast<std::string const&>(toml::find<toml::string>(db, "path"));
+
+    if (auto server_it = data_table.find("server"); server_it != data_table.end())
+    {
+        auto& server = server_it->second.as_table();
+        if (auto uuid_it = server.find("uuid"); uuid_it != server.end())
+        {
+            result.server.uuid = boost::uuids::string_generator{}(static_cast<std::string const&>(toml::get<toml::string>(uuid_it->second)));
+        }
+    }
+    if (result.server.uuid.is_nil())
+    {
+        result.server.uuid = boost::uuids::name_generator_latest{boost::uuids::ns::dns()}(net::ip::host_name());
+    }
+
     return result;
 }
 }
