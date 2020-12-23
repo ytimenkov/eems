@@ -21,9 +21,9 @@ int main(int argc, char const* argv[])
     spdlog::info("Configs: {}", config.data.content_directories);
 
     eems::store_service store_service{config.db};
-    eems::upnp_service upnp_service{store_service};
+    eems::upnp_service upnp_service{store_service, config.server};
     eems::content_service content_service{store_service};
-    eems::server server{upnp_service, content_service};
+    eems::server server{config.server, upnp_service, content_service};
     eems::discovery_service discovery_service{config.server};
     eems::scan_service scan_service{};
 

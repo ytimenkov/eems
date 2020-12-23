@@ -62,7 +62,7 @@ auto upnp_service::handle_cds_browse(tcp_stream& stream, http_request&& req, soa
     }();
 #endif
 
-    auto content_base = "http://localhost:8000/content/";
+    auto content_base = fmt::format("{}/content/", server_config_.base_url);
 
     auto [didl_doc, didl_root] = generate_preamble("DIDL-Lite", "urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/");
     didl_root.append_attribute("xmlns:upnp").set_value("urn:schemas-upnp-org:metadata-1-0/upnp/");
@@ -79,7 +79,7 @@ auto upnp_service::handle_upnp_request(tcp_stream& stream, http_request&& req, f
 {
     if (sub_path.native() == "device")
     {
-        co_await respond_with_buffer(stream, req, root_device_description("http://localhost:8000"), "text/xml");
+        co_await respond_with_buffer(stream, req, root_device_description(server_config_), "text/xml");
         co_return;
     }
     auto soap_info = parse_soap_request(req);

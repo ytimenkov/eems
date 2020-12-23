@@ -1,6 +1,7 @@
 #ifndef EEMS_XML_SERIALIZATION_H
 #define EEMS_XML_SERIALIZATION_H
 
+#include "config.h"
 #include "net.h"
 #include "store/store_service.h"
 
@@ -9,7 +10,7 @@
 
 namespace eems
 {
-auto root_device_description(char const* url_base) -> beast::flat_buffer;
+auto root_device_description(server_config const& server_config) -> beast::flat_buffer;
 auto browse_response(pugi::xml_document const& didl_doc, std::size_t count) -> beast::flat_buffer;
 
 auto generate_preamble(char const* root_element, char const* root_ns)

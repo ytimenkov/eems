@@ -11,8 +11,10 @@ struct soap_action_info;
 class upnp_service
 {
 public:
-    explicit upnp_service(store_service& store_service)
-        : store_service_{store_service}
+    explicit upnp_service(store_service& store_service,
+                          server_config const& server_config)
+        : store_service_{store_service},
+          server_config_{server_config}
     {
     }
 
@@ -25,6 +27,7 @@ private:
 
 private:
     store_service& store_service_;
+    server_config const& server_config_;
 };
 }
 

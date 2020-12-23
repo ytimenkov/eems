@@ -10,7 +10,7 @@ namespace eems
 {
 struct db_config
 {
-    fs::path path;
+    fs::path path{"/var/lib/eems/db"};
 };
 struct data_config
 {
@@ -20,6 +20,9 @@ struct data_config
 struct server_config
 {
     boost::uuids::uuid uuid;
+    unsigned short listen_port{0};
+    std::string host_name;
+    std::string base_url;
 };
 
 struct config

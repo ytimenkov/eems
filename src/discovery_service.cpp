@@ -39,17 +39,17 @@ auto discovery_service::run_service()
         buffer.consume(buffer.size());
         auto received_bytes = co_await mc_socket.async_receive_from(buffer.prepare(1500), sender_endpoint);
         buffer.commit(received_bytes);
-        spdlog::info("Received discovery request: {}", beast::make_printable(buffer.data()));
+        spdlog::debug("Received discovery request: {}", beast::make_printable(buffer.data()));
         if (auto response = handle_request(deserialize_request<http::empty_body>(buffer)); response)
         {
             buffer.consume(buffer.size());
             serialize(buffer, *response);
-            spdlog::info("Sending discovery response: {}", beast::make_printable(buffer.data()));
+            spdlog::debug("Sending discovery response: {}", beast::make_printable(buffer.data()));
             co_await mc_socket.async_send_to(buffer.data(), sender_endpoint);
         }
         else
         {
-            spdlog::info("Ignored request");
+            spdlog::debug("Ignored request");
         }
     }
 }
@@ -59,32 +59,33 @@ auto discovery_service::handle_request(http::request<http::empty_body>&& req)
 {
     if (req.method() != http::verb::msearch)
     {
-        spdlog::info("Method {} is not search", req.method_string());
+        spdlog::debug("Method {} is not search", req.method_string());
         return std::nullopt;
     }
     if (req.target() != "*")
     {
-        spdlog::info("Target {} is not *", req.target());
+        spdlog::debug("Target {} is not *", req.target());
         return std::nullopt;
     }
     if (req[http::field::man] != "\"ssdp:discover\"")
     {
-        spdlog::info("man {} is not ssdp:discover", req[http::field::man]);
+        spdlog::debug("man {} is not ssdp:discover", req[http::field::man]);
         return std::nullopt;
     }
     // TODO: Check host
     auto st = req["st"];
     if (st != "upnp:rootdevice" && st != "urn:schemas-upnp-org:device:MediaServer:1")
     {
-        spdlog::info("st {} is not supported", st);
+        spdlog::debug("st {} is not supported", st);
         return std::nullopt;
     }
 
     http::response<http::empty_body> response(http::status::ok, req.version());
     response.set(http::field::cache_control, fmt::format("max-age={}", 1800)); // TODO: derive from notify interval
-    response.set(http::field::location, "http://localhost:8000/device");       // TODO: UPNP device request.
+    response.set(http::field::location, fmt::format("{}/upnp/device", config_.base_url));
     response.set("st", st);
-    response.set("usn", fmt::format("uuid:{}:{}", to_string(config_.uuid), st));
+    response.set("usn", fmt::format("uuid:{}::{}", to_string(config_.uuid), st));
+    response.set("ext", std::string_view{});
 
     return response;
 }

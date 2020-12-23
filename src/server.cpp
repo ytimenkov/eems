@@ -120,9 +120,17 @@ auto server::handle_connections(net::ip::tcp::socket socket) -> net::awaitable<v
 auto server::run_server() -> net::awaitable<void>
 {
     auto executor = co_await net::this_coro::executor;
-    auto acceptor = net::ip::tcp::acceptor{executor, {net::ip::tcp::v4(), 8000}};
+    auto acceptor = net::ip::tcp::acceptor{executor, {net::ip::tcp::v4(), config_.listen_port}};
 
-    spdlog::info("Server listening on http://{}\n", acceptor.local_endpoint());
+    // TODO: Updating config here may be not safe in the future,
+    // so this should be split up into intiialization and run.
+    // however now it's single-threaded so other services won' access it.
+    {
+        config_.listen_port = acceptor.local_endpoint().port();
+        config_.base_url = fmt::format("http://{}:{}", config_.host_name, config_.listen_port);
+    }
+
+    spdlog::info("Server listening on {}", config_.base_url);
 
     for (;;)
     {

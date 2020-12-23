@@ -4,6 +4,7 @@
 #include "ranges.h"
 #include "store/fb_converters.h"
 
+#include <boost/uuid/uuid_io.hpp>
 #include <fmt/core.h>
 #include <range/v3/algorithm/for_each.hpp>
 #include <spdlog/spdlog.h>
@@ -54,14 +55,31 @@ auto generate_preamble(char const* root_element, char const* root_ns)
     return result;
 }
 
-auto root_device_description(char const* url_base) -> beast::flat_buffer
+auto root_device_description(server_config const& server_config) -> beast::flat_buffer
 {
     auto [doc, root] = generate_preamble("root", "urn:schemas-upnp-org:device-1-0");
     auto specVersion = root.append_child("specVersion");
     specVersion.append_child("major").text().set("1");
     specVersion.append_child("minor").text().set("0");
 
-    root.append_child("URLBase").text().set(url_base);
+    root.append_child("URLBase").text().set(server_config.base_url.c_str());
+
+    auto device = root.append_child("device");
+    // TODO: Clean up duplication between upnp services and dsicovery
+    device.append_child("deviceType").text().set("urn:schemas-upnp-org:device:MediaServer:1");
+    device.append_child("friendlyName").text().set(fmt::format("EEMS at {}", server_config.host_name).c_str());
+    device.append_child("UDN").text().set(fmt::format("uuid:{}", to_string(server_config.uuid)).c_str());
+
+    auto service_list = device.append_child("serviceList");
+
+    {
+        auto service = service_list.append_child("service");
+        service.append_child("serviceType").text().set("urn:schemas-upnp-org:service:ContentDirectory:1");
+        service.append_child("serviceId").text().set("urn:upnp-org:serviceId:ContentDirectory");
+        service.append_child("SCPDURL").text().set("upnp/cds.xml");
+        service.append_child("controlURL").text().set("upnp/cds");
+        service.append_child("eventSubURL").text().set("upnp/cds");
+    }
 
     beast::flat_buffer result;
     buffer_writer writer{result};
