@@ -1,0 +1,18 @@
+# Optimized
+OPT_FLAGS=-O3 -g -flto -fuse-linker-plugin
+
+[settings]
+build_type=Release
+
+[options]
+# Use shared libraries for faster link time
+*:shared=False
+*:fPIC=False
+
+[env]
+CXXFLAGS=$OPT_FLAGS
+CFLAGS=$OPT_FLAGS
+LDFLAGS=-flto -O3
+
+eems:CXXFLAGS=$OPT_FLAGS -Werror -Wall -fdiagnostics-color
+eems:CMAKE_EXPORT_COMPILE_COMMANDS=ON
