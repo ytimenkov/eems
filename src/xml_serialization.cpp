@@ -78,7 +78,16 @@ auto root_device_description(server_config const& server_config) -> beast::flat_
         service.append_child("serviceId").text().set("urn:upnp-org:serviceId:ContentDirectory");
         service.append_child("SCPDURL").text().set("upnp/cds.xml");
         service.append_child("controlURL").text().set("upnp/cds");
-        service.append_child("eventSubURL").text().set("upnp/cds");
+        service.append_child("eventSubURL").text().set("upnp/event/cds");
+    }
+
+    {
+        auto service = service_list.append_child("service");
+        service.append_child("serviceType").text().set("urn:schemas-upnp-org:service:ConnectionManager:1");
+        service.append_child("serviceId").text().set("urn:upnp-org:serviceId:ConnectionManager");
+        service.append_child("SCPDURL").text().set("upnp/cm.xml");
+        service.append_child("controlURL").text().set("upnp/cm");
+        service.append_child("eventSubURL").text().set("upnp/event/cm");
     }
 
     beast::flat_buffer result;

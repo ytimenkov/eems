@@ -1,12 +1,14 @@
 #include "upnp.h"
 
+#include "cds.xml"
+#include "cm.xml"
 #include "soap.h"
 #include "spirit.h"
 #include "store/fb_converters.h"
 #include "xml_serialization.h"
 
-#include <boost/beast/core.hpp>
-#include <boost/beast/http.hpp>
+#include <boost/beast/http/buffer_body.hpp>
+#include <boost/beast/http/write.hpp>
 #include <boost/beast/version.hpp>
 #include <range/v3/algorithm/count_if.hpp>
 #include <range/v3/algorithm/for_each.hpp>
@@ -20,22 +22,29 @@ enum class browse_flag
     direct_children,
 };
 
-auto respond_with_buffer(tcp_stream& stream, http_request const& req,
-                         beast::flat_buffer buffer, std::string_view mime_type)
-    -> net::awaitable<void>
+auto create_buffer_response(http_request const& req,
+                            boost::asio::const_buffer buffer, std::string_view mime_type)
+    -> http::response<http::buffer_body>
 {
-    auto const buf = buffer.data();
-    auto res = http::response<http::buffer_body>{
+    auto response = http::response<http::buffer_body>{
         std::piecewise_construct,
-        std::make_tuple(buf.data(), buf.size(), false),
+        std::make_tuple(const_cast<void*>(buffer.data()), buffer.size(), false), // TODO: It's a pity that bufer_body is always non-const.
         std::make_tuple(http::status::ok, req.version())};
-    res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
-    res.set(http::field::content_type, mime_type);
+    response.set(http::field::server, BOOST_BEAST_VERSION_STRING);
+    response.set(http::field::content_type, mime_type);
 
-    res.content_length(buf.size());
+    response.content_length(buffer.size());
+    response.keep_alive(req.keep_alive());
 
-    co_await http::async_write(stream, res);
+    return response;
 }
+
+inline auto make_string_buffer(char const* str) 
+-> boost::asio::const_buffer
+{
+    return {str, std::strlen(str)};
+}
+
 
 auto upnp_service::handle_cds_browse(tcp_stream& stream, http_request&& req, soap_action_info const& soap_req)
     -> net::awaitable<void>
@@ -69,9 +78,12 @@ auto upnp_service::handle_cds_browse(tcp_stream& stream, http_request&& req, soa
     didl_root.append_attribute("xmlns:dc").set_value("http://purl.org/dc/elements/1.1/");
 
     auto contents = store_service_.list(ObjectKey{parent_id});
-    auto count = ranges::count_if(contents, std::bind_front(&serialize, std::ref(didl_root), content_base));
+    auto count = ranges::count_if(contents,
+     [&didl_root, content_base = std::string_view{content_base}](MediaObject const & object) -> bool {
+        return serialize(didl_root, content_base, object);
+    });
 
-    co_await respond_with_buffer(stream, req, browse_response(didl_doc, count), "text/xml");
+    co_await http::async_write(stream, create_buffer_response(req, browse_response(didl_doc, count).cdata(), "text/xml"));
 }
 
 auto upnp_service::handle_upnp_request(tcp_stream& stream, http_request&& req, fs::path sub_path)
@@ -79,7 +91,17 @@ auto upnp_service::handle_upnp_request(tcp_stream& stream, http_request&& req, f
 {
     if (sub_path.native() == "device")
     {
-        co_await respond_with_buffer(stream, req, root_device_description(server_config_), "text/xml");
+        co_await http::async_write(stream, create_buffer_response(req, root_device_description(server_config_).cdata(), "text/xml"));
+        co_return;
+    }
+    else if (sub_path.native() == "cds.xml")
+    {
+        co_await http::async_write(stream, create_buffer_response(req, make_string_buffer(cds_xml), "text/xml"));
+        co_return;
+    }
+    else if (sub_path.native() == "cm.xml")
+    {
+        co_await http::async_write(stream, create_buffer_response(req, make_string_buffer(cm_xml), "text/xml"));
         co_return;
     }
     auto soap_info = parse_soap_request(req);

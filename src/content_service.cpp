@@ -80,7 +80,7 @@ auto content_service::create_response(fs::path const& sub_path, http_request con
     resp.version(req.version());
     resp.set(http::field::server, BOOST_BEAST_VERSION_STRING);
     resp.set(http::field::accept_ranges, "bytes");
-    resp.keep_alive(req.keep_alive());
+    resp.keep_alive(false);
 
     size = file.size(ec);
     if (ec)
