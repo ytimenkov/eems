@@ -125,7 +125,7 @@ auto scan_service::scan_all(fs::path const& root, store_service& store) -> void
     while (!directories.empty())
     {
         auto scan_result = scan_directory(directories.back(), resource_id);
-        store.put_items({}, std::move(scan_result.items), std::move(scan_result.resources));
+        store.put_items({1}, std::move(scan_result.items), std::move(scan_result.resources));
         directories.pop_back();
         ranges::push_back(directories, scan_result.directories);
     }

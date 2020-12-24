@@ -114,17 +114,30 @@ store_service::store_service(db_config const& config)
         throw std::runtime_error(status.ToString());
     }
 
-    container_data root_container{
-        .id{0},
-        .parent_id{-1},
-        .upnp_class{u8"object.item"}};
-    auto container_buf = serialize_container(root_container);
-    status = db_->Put(leveldb::WriteOptions{},
-                      serialize_key(ObjectKey{0}),
-                      leveldb::Slice{reinterpret_cast<char const*>(container_buf.data()), container_buf.size()});
-    if (!status.ok())
     {
-        throw std::runtime_error("Failed to create root container");
+        container_data root_container{
+            .id{0},
+            .parent_id{-1},
+            .upnp_class{u8"object.container"}};
+        auto container_buf = serialize_container(root_container);
+        status = db_->Put(leveldb::WriteOptions{},
+                          serialize_key(ObjectKey{0}),
+                          leveldb::Slice{reinterpret_cast<char const*>(container_buf.data()), container_buf.size()});
+        if (!status.ok())
+        {
+            throw std::runtime_error("Failed to create root container");
+        }
+    }
+    {
+        container_data video_container{
+            .id{1},
+            .parent_id{0},
+            .dc_title{u8"Video"},
+            .upnp_class{u8"object.container"}};
+        std::vector<flatbuffers::DetachedBuffer> contents;
+        contents.emplace_back(serialize_container(video_container));
+
+        put_items(video_container.parent_id, std::move(contents), {});
     }
 }
 

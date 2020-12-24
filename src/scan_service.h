@@ -16,7 +16,7 @@ public:
         std::vector<fs::path> directories;
     };
 
-    auto scan_directory(fs::path const& path, int64_t& resource_id) -> scan_result;
+    auto scan_directory(fs::path const& path, int64_t& resource_id) -> scan_service::scan_result;
 
     auto scan_all(fs::path const& root, store_service& store) -> void;
 

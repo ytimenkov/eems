@@ -54,6 +54,11 @@ const char* cds_xml = R"##(<?xml version="1.0" encoding="utf-8"?>
           <direction>out</direction>
           <relatedStateVariable>A_ARG_TYPE_Count</relatedStateVariable>
         </argument>
+        <argument>
+          <name>UpdateID</name>
+          <direction>out</direction>
+          <relatedStateVariable>A_ARG_TYPE_UpdateID</relatedStateVariable>
+        </argument>
       </argumentList>
     </action>
   </actionList>
@@ -81,6 +86,10 @@ const char* cds_xml = R"##(<?xml version="1.0" encoding="utf-8"?>
     <stateVariable sendEvents="no">
       <name>A_ARG_TYPE_ObjectID</name>
       <dataType>string</dataType>
+    </stateVariable>
+    <stateVariable sendEvents="no">
+      <name>A_ARG_TYPE_UpdateID</name>
+      <dataType>ui4</dataType>
     </stateVariable>
     <stateVariable sendEvents="no">
       <name>A_ARG_TYPE_Result</name>

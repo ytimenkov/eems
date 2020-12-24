@@ -169,7 +169,7 @@ auto browse_response(pugi::xml_document const& didl_doc, std::size_t count) -> b
     auto response = soap_body.append_child("u:BrowseResponse");
     response.append_attribute("xmlns:u").set_value("urn:schemas-upnp-org:service:ContentDirectory:1");
     response.append_child("NumberReturned").text().set(count);
-    response.append_child("TotalMatches").text().set("0");
+    response.append_child("TotalMatches").text().set(count); // TODO: Otherwise Kodi falls into an infinite loop...
     response.append_child("UpdateID").text().set("0");
     response.append_child("Result").text().set(static_cast<char const*>(result.data().data()));
 

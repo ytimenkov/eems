@@ -11,7 +11,6 @@
 #include <boost/beast/http/write.hpp>
 #include <boost/beast/version.hpp>
 #include <range/v3/algorithm/count_if.hpp>
-#include <range/v3/algorithm/for_each.hpp>
 #include <spdlog/spdlog.h>
 
 namespace eems
@@ -39,12 +38,11 @@ auto create_buffer_response(http_request const& req,
     return response;
 }
 
-inline auto make_string_buffer(char const* str) 
--> boost::asio::const_buffer
+inline auto make_string_buffer(char const* str)
+    -> boost::asio::const_buffer
 {
     return {str, std::strlen(str)};
 }
-
 
 auto upnp_service::handle_cds_browse(tcp_stream& stream, http_request&& req, soap_action_info const& soap_req)
     -> net::awaitable<void>
@@ -79,9 +77,9 @@ auto upnp_service::handle_cds_browse(tcp_stream& stream, http_request&& req, soa
 
     auto contents = store_service_.list(ObjectKey{parent_id});
     auto count = ranges::count_if(contents,
-     [&didl_root, content_base = std::string_view{content_base}](MediaObject const & object) -> bool {
-        return serialize(didl_root, content_base, object);
-    });
+                                  [&](MediaObject const& object) -> bool {
+                                      return serialize(didl_root, content_base, object);
+                                  });
 
     co_await http::async_write(stream, create_buffer_response(req, browse_response(didl_doc, count).cdata(), "text/xml"));
 }
