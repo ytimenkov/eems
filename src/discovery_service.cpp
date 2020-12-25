@@ -8,7 +8,6 @@
 #include <boost/beast/core/make_printable.hpp>
 #include <boost/uuid/uuid_io.hpp>
 #include <fmt/ostream.h>
-#include <spdlog/spdlog.h>
 
 namespace eems
 {
@@ -39,17 +38,11 @@ auto discovery_service::run_service()
         buffer.consume(buffer.size());
         auto received_bytes = co_await mc_socket.async_receive_from(buffer.prepare(1500), sender_endpoint);
         buffer.commit(received_bytes);
-        spdlog::debug("Received discovery request: {}", beast::make_printable(buffer.data()));
         if (auto response = handle_request(deserialize_request<http::empty_body>(buffer)); response)
         {
             buffer.consume(buffer.size());
             serialize(buffer, *response);
-            spdlog::debug("Sending discovery response: {}", beast::make_printable(buffer.data()));
             co_await mc_socket.async_send_to(buffer.data(), sender_endpoint);
-        }
-        else
-        {
-            spdlog::debug("Ignored request");
         }
     }
 }
@@ -59,24 +52,20 @@ auto discovery_service::handle_request(http::request<http::empty_body>&& req)
 {
     if (req.method() != http::verb::msearch)
     {
-        spdlog::debug("Method {} is not search", req.method_string());
         return std::nullopt;
     }
     if (req.target() != "*")
     {
-        spdlog::debug("Target {} is not *", req.target());
         return std::nullopt;
     }
     if (req[http::field::man] != "\"ssdp:discover\"")
     {
-        spdlog::debug("man {} is not ssdp:discover", req[http::field::man]);
         return std::nullopt;
     }
     // TODO: Check host
     auto st = req["st"];
     if (st != "upnp:rootdevice" && st != "urn:schemas-upnp-org:device:MediaServer:1")
     {
-        spdlog::debug("st {} is not supported", st);
         return std::nullopt;
     }
 

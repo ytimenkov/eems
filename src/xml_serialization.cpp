@@ -157,7 +157,7 @@ auto browse_response(store_service::list_result_view const& list, std::string_vi
 
 #if __INTELLISENSE__ == 1
     auto const count = 0;
-    auto const size =0;
+    auto const size = 0;
 #else
     auto const count = ranges::count_if(list, std::bind_front(&serialize_media_object, std::ref(didl_root), base_url));
     auto const size = ranges::size(list);
@@ -169,8 +169,6 @@ auto browse_response(store_service::list_result_view const& list, std::string_vi
     xml_doc.print(writer);
     // Unfortunately PugiXML doesn't provide string_view-like interfaces, only C-strings...
     append_null(result);
-
-    spdlog::debug("Returning DIDL:\n{}", static_cast<char const*>(result.data().data()));
 
     xml_doc.reset();
     auto soap_root = xml_doc.append_child("s:Envelope");

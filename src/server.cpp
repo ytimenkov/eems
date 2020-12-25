@@ -46,12 +46,7 @@ auto server::handle_connections(net::ip::tcp::socket socket) -> net::awaitable<v
             stream.expires_after(std::chrono::seconds(30));
             co_await http::async_read(stream, buffer, req);
 
-            {
-                assert(buffer.size() == 0);
-                serialize(buffer, req);
-                spdlog::debug("Got request: {}", beast::make_printable(buffer.data()));
-                buffer.consume(buffer.size());
-            }
+            spdlog::debug("Got request: {} {}", req.method_string(), req.target());
 
             auto [path, query] = parse_target(req.target());
 
