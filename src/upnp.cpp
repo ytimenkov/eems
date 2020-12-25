@@ -10,7 +10,6 @@
 #include <boost/beast/http/buffer_body.hpp>
 #include <boost/beast/http/write.hpp>
 #include <boost/beast/version.hpp>
-#include <range/v3/algorithm/count_if.hpp>
 #include <spdlog/spdlog.h>
 
 namespace eems
@@ -50,38 +49,28 @@ auto upnp_service::handle_cds_browse(tcp_stream& stream, http_request&& req, soa
     // TODO: There are filter and search criteria and start index / count
     // TODO: Also returns dumb NumberReturned value and TotalMatches and UpdateID
 
-    int64_t parent_id;
-    if (auto const id = soap_req.params.child_value("ObjectID"); !parse(std::string_view{id}, x3::int64, parent_id))
+    int64_t object_id;
+    if (auto const id = soap_req.params.child_value("ObjectID"); !parse(std::string_view{id}, x3::int64, object_id))
     {
         // TODO: find out proper exception type.
         throw std::runtime_error(fmt::format("Invalid id: {}", id));
     }
 
-#if 0
-    auto const browse_flag = [flag = std::string_view{soap_req.params.child_value("BrowseFlag")}]() {
+    auto contents = [flag = std::string_view{soap_req.params.child_value("BrowseFlag")},
+                     key = ObjectKey{object_id},
+                     &store_service = store_service_]() -> store_service::list_result_view {
         if (flag == "BrowseDirectChildren")
-            return browse_flag::direct_children;
+            return store_service.list(key);
         else if (flag == "BrowseMetadata")
-            return browse_flag::metadata;
+            return store_service.get(key);
         else
             // TODO: Here we can send SOAP error instead. Fault or so...
             throw http_error{http::status::bad_request, "Invalid BrowseFlag"};
     }();
-#endif
 
-    auto content_base = fmt::format("{}/content/", server_config_.base_url);
-
-    auto [didl_doc, didl_root] = generate_preamble("DIDL-Lite", "urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/");
-    didl_root.append_attribute("xmlns:upnp").set_value("urn:schemas-upnp-org:metadata-1-0/upnp/");
-    didl_root.append_attribute("xmlns:dc").set_value("http://purl.org/dc/elements/1.1/");
-
-    auto contents = store_service_.list(ObjectKey{parent_id});
-    auto count = ranges::count_if(contents,
-                                  [&](MediaObject const& object) -> bool {
-                                      return serialize(didl_root, content_base, object);
-                                  });
-
-    co_await http::async_write(stream, create_buffer_response(req, browse_response(didl_doc, count).cdata(), "text/xml"));
+    co_await http::async_write(
+        stream, create_buffer_response(
+                    req, browse_response(std::move(contents), server_config_.base_url).cdata(), "text/xml"));
 }
 
 auto upnp_service::handle_upnp_request(tcp_stream& stream, http_request&& req, fs::path sub_path)

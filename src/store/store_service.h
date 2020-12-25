@@ -80,6 +80,7 @@ public:
     };
 
     auto list(ObjectKey id) -> list_result_view;
+    auto get(ObjectKey id) -> list_result_view;
 
     struct resource_result
     {

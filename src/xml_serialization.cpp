@@ -6,6 +6,7 @@
 
 #include <boost/uuid/uuid_io.hpp>
 #include <fmt/core.h>
+#include <range/v3/algorithm/count_if.hpp>
 #include <range/v3/algorithm/for_each.hpp>
 #include <spdlog/spdlog.h>
 
@@ -98,7 +99,7 @@ auto root_device_description(server_config const& server_config) -> beast::flat_
     return result;
 }
 
-auto serialize(pugi::xml_node& didl_root, std::string_view content_base, MediaObject const& object) -> bool
+auto serialize_media_object(pugi::xml_node& didl_root, std::string_view content_base, MediaObject const& object) -> bool
 {
     auto serialize_common_fields = [&object](pugi::xml_node& node) {
         node.append_attribute("id").set_value(object.id()->id());
@@ -123,7 +124,7 @@ auto serialize(pugi::xml_node& didl_root, std::string_view content_base, MediaOb
                 {
                     auto res = node.append_child("res");
                     res.append_attribute("protocolInfo").set_value(as_cstring<char>(*r->protocol_info()));
-                    res.text().set(fmt::format("{}{}", content_base, res_key->id()).c_str());
+                    res.text().set(fmt::format("{}/content/{}", content_base, res_key->id()).c_str());
                 }
                 else
                 {
@@ -148,19 +149,31 @@ auto serialize(pugi::xml_node& didl_root, std::string_view content_base, MediaOb
     return true;
 }
 
-auto browse_response(pugi::xml_document const& didl_doc, std::size_t count) -> beast::flat_buffer
+auto browse_response(store_service::list_result_view const& list, std::string_view base_url) -> beast::flat_buffer
 {
+    auto [xml_doc, didl_root] = generate_preamble("DIDL-Lite", "urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/");
+    didl_root.append_attribute("xmlns:upnp").set_value("urn:schemas-upnp-org:metadata-1-0/upnp/");
+    didl_root.append_attribute("xmlns:dc").set_value("http://purl.org/dc/elements/1.1/");
+
+#if __INTELLISENSE__ == 1
+    auto const count = 0;
+    auto const size =0;
+#else
+    auto const count = ranges::count_if(list, std::bind_front(&serialize_media_object, std::ref(didl_root), base_url));
+    auto const size = ranges::size(list);
+#endif
+
     beast::flat_buffer result;
     buffer_writer writer{result};
 
-    didl_doc.print(writer);
+    xml_doc.print(writer);
     // Unfortunately PugiXML doesn't provide string_view-like interfaces, only C-strings...
     append_null(result);
 
     spdlog::debug("Returning DIDL:\n{}", static_cast<char const*>(result.data().data()));
 
-    auto soap_doc = pugi::xml_document{};
-    auto soap_root = soap_doc.append_child("s:Envelope");
+    xml_doc.reset();
+    auto soap_root = xml_doc.append_child("s:Envelope");
     soap_root.append_attribute("xmlns:s").set_value("http://schemas.xmlsoap.org/soap/envelope/");
     soap_root.append_attribute("s:encodingStyle").set_value("http://schemas.xmlsoap.org/soap/encoding/");
     auto soap_body = soap_root.append_child("s:Body");
@@ -169,13 +182,13 @@ auto browse_response(pugi::xml_document const& didl_doc, std::size_t count) -> b
     auto response = soap_body.append_child("u:BrowseResponse");
     response.append_attribute("xmlns:u").set_value("urn:schemas-upnp-org:service:ContentDirectory:1");
     response.append_child("NumberReturned").text().set(count);
-    response.append_child("TotalMatches").text().set(count); // TODO: Otherwise Kodi falls into an infinite loop...
+    response.append_child("TotalMatches").text().set(size);
     response.append_child("UpdateID").text().set("0");
     response.append_child("Result").text().set(static_cast<char const*>(result.data().data()));
 
     // Just reuse same writer / buffer...
     result.consume(result.size());
-    soap_doc.print(writer);
+    xml_doc.print(writer);
 
     return result;
 }

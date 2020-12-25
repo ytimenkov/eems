@@ -254,6 +254,11 @@ auto store_service::list(ObjectKey id) -> store_service::list_result_view
     return list_result_view{std::move(it), std::move(container_data.objects)};
 }
 
+auto store_service::get(ObjectKey id) -> store_service::list_result_view
+{
+    return list_result_view{create_iterator(), {serialize_key(id)}};
+}
+
 auto store_service::get_resource(ResourceKey id) -> resource_result
 {
     resource_result result{nullptr, create_iterator()};
