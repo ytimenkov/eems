@@ -16,8 +16,8 @@ target_link_libraries(store
     PUBLIC
     flatbuffers::flatbuffers
     leveldb::leveldb
-    PRIVATE
     range-v3::range-v3
+    PRIVATE
     spdlog::spdlog
     Boost::Boost
     )

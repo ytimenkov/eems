@@ -314,10 +314,7 @@ auto store_service::serialize_container(container_data const& data) -> flatbuffe
         fbb.CreateVector(
             data.objects |
             views::transform([&fbb](auto const& buf) {
-                return CreateMediaObjectRef(
-                    fbb,
-                    // Don't use put_string here because raw key is serialized
-                    fbb.CreateVector(reinterpret_cast<uint8_t const*>(buf.data()), buf.size()));
+                return put_reference(buf, fbb);
             }) |
             ranges::to<std::vector>()));
 

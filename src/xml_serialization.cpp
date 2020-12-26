@@ -71,6 +71,12 @@ auto root_device_description(server_config const& server_config) -> beast::flat_
     device.append_child("friendlyName").text().set(fmt::format("EEMS at {}", server_config.host_name).c_str());
     device.append_child("UDN").text().set(fmt::format("uuid:{}", to_string(server_config.uuid)).c_str());
 
+    {
+        auto dlna_doc = device.append_child("dlna:X_DLNADOC");
+        dlna_doc.append_attribute("xmlns:dlna").set_value("urn:schemas-dlna-org:device-1-0");
+        dlna_doc.text().set("DMS-1.50");
+    }
+
     auto service_list = device.append_child("serviceList");
 
     {
@@ -101,13 +107,22 @@ auto root_device_description(server_config const& server_config) -> beast::flat_
 
 auto serialize_media_object(pugi::xml_node& didl_root, std::string_view content_base, MediaObject const& object) -> bool
 {
-    auto serialize_common_fields = [&object](pugi::xml_node& node) {
+    auto resource_url = [content_base](int64_t id) {
+        return fmt::format("{}/content/{}", content_base, id);
+    };
+    auto serialize_common_fields = [&object, resource_url](pugi::xml_node& node) {
         node.append_attribute("id").set_value(object.id()->id());
         node.append_attribute("parentID").set_value(object.parent_id()->id());
         node.append_attribute("restricted").set_value("1");
 
         node.append_child("dc:title").text().set(as_cstring<char>(*object.dc_title()));
         node.append_child("upnp:class").text().set(as_cstring<char>(*object.upnp_class()));
+        if (auto album_art = object.album_art(); album_art)
+        {
+            auto const id = album_art->ref_nested_root()->key_as_ResourceKey()->id();
+            // TODO: Some set dlna:protocolInfo extension to JPEG_TN, but it seems to be ignored.
+            node.append_child("upnp:albumArtURI").text().set(resource_url(id).c_str());
+        }
     };
 
     switch (object.data_type())
@@ -119,12 +134,12 @@ auto serialize_media_object(pugi::xml_node& didl_root, std::string_view content_
         serialize_common_fields(node);
         if (auto resources = item.resources(); resources)
         {
-            ranges::for_each(*resources, [&node, &object, content_base](ResourceRef const* r) {
+            ranges::for_each(*resources, [&node, &object, resource_url](ResourceRef const* r) {
                 if (auto res_key = r->ref_nested_root()->key_as_ResourceKey(); res_key)
                 {
                     auto res = node.append_child("res");
                     res.append_attribute("protocolInfo").set_value(as_cstring<char>(*r->protocol_info()));
-                    res.text().set(fmt::format("{}/content/{}", content_base, res_key->id()).c_str());
+                    res.text().set(resource_url(res_key->id()).c_str());
                 }
                 else
                 {

@@ -1,7 +1,7 @@
 #include "config.h"
 #include "discovery_service.h"
 #include "logging.h"
-#include "scan_service.h"
+#include "scanner/movie_scanner.h"
 #include "server.h"
 
 #include <boost/asio/co_spawn.hpp>
@@ -25,12 +25,12 @@ int main(int argc, char const* argv[])
     eems::content_service content_service{store_service};
     eems::server server{config.server, upnp_service, content_service};
     eems::discovery_service discovery_service{config.server};
-    eems::scan_service scan_service{};
+    eems::movie_scanner movie_scanner{};
 
     // TODO: This is temporary:
     for (auto& path : config.data.content_directories)
     {
-        scan_service.scan_all(path, store_service);
+        movie_scanner.scan_all(path, store_service);
     }
 
     boost::asio::io_context io_context{1};

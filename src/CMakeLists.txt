@@ -1,5 +1,6 @@
 add_subdirectory(asio)
 add_subdirectory(store)
+add_subdirectory(scanner)
 
 add_executable(eems)
 
@@ -18,8 +19,6 @@ target_sources(eems PRIVATE
     logging.h
     main.cpp
     net.h
-    scan_service.cpp
-    scan_service.h
     server.cpp
     server.h
     soap.cpp
@@ -40,4 +39,5 @@ target_link_libraries(eems PUBLIC
     toml11::toml11
     asio
     store
+    scanner
     )

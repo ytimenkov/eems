@@ -49,6 +49,7 @@ table MediaObject {
     parent_id: ObjectKey (required);
     dc_title: [ubyte] (required);
     upnp_class: [ubyte]  (required);
+    album_art: MediaObjectRef;
     data: ObjectUnion;
 }
 

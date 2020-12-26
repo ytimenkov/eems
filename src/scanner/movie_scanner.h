@@ -1,12 +1,12 @@
-#ifndef EEMS_SCAN_SERVICE_H
-#define EEMS_SCAN_SERVICE_H
+#ifndef EEMS_MOVIE_SCANNER_H
+#define EEMS_MOVIE_SCANNER_H
 
-#include "fs.h"
-#include "store/store_service.h"
+#include "../fs.h"
+#include "../store/store_service.h"
 
 namespace eems
 {
-class scan_service
+class movie_scanner
 {
 public:
     struct scan_result
@@ -16,7 +16,7 @@ public:
         std::vector<fs::path> directories;
     };
 
-    auto scan_directory(fs::path const& path, int64_t& resource_id) -> scan_service::scan_result;
+    auto scan_directory(fs::path const& path, int64_t& resource_id) -> movie_scanner::scan_result;
 
     auto scan_all(fs::path const& root, store_service& store) -> void;
 

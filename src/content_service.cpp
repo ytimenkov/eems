@@ -80,7 +80,7 @@ auto content_service::create_response(fs::path const& sub_path, http_request con
     resp.version(req.version());
     resp.set(http::field::server, BOOST_BEAST_VERSION_STRING);
     resp.set(http::field::accept_ranges, "bytes");
-    resp.keep_alive(false);
+    resp.keep_alive(req.keep_alive());
 
     size = file.size(ec);
     if (ec)
@@ -134,6 +134,11 @@ auto content_service::handle_request(tcp_stream& stream, http_request&& req, fs:
 
         co_await http::async_write_header(stream, sr);
         // Don't use serializer because it throws need buffer exception (in co_await).
+    }
+    if (req.method() == http::verb::head)
+    {
+        // No need to send body for HEAD request.
+        co_return;
     }
     // Reuse request's buffer.
     // TODO: Look at llfio's and its reading...

@@ -30,7 +30,10 @@ auto create_buffer_response(http_request const& req,
         std::make_tuple(http::status::ok, req.version())};
     response.set(http::field::server, BOOST_BEAST_VERSION_STRING);
     response.set(http::field::content_type, mime_type);
-
+    if (req.method() == http::verb::post)
+    {
+        response.set("ext", std::string_view{});
+    }
     response.content_length(buffer.size());
     response.keep_alive(req.keep_alive());
 

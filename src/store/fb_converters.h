@@ -57,6 +57,13 @@ inline auto loggable_u8_view(std::u8string_view u8_view) -> std::string_view
     return std::string_view{reinterpret_cast<char const*>(u8_view.data()), u8_view.size()};
 }
 
+inline auto put_reference(std::string const& key, flatbuffers::FlatBufferBuilder& fbb)
+{
+    return CreateMediaObjectRef(fbb,
+                                // Don't use put_string here because raw key is serialized
+                                fbb.CreateVector(reinterpret_cast<uint8_t const*>(key.data()), key.size()));
+}
+
 }
 
 #endif
