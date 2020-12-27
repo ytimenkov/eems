@@ -37,6 +37,7 @@ target_link_libraries(eems PUBLIC
     pugixml::pugixml
     range-v3::range-v3
     toml11::toml11
+    date::date
     asio
     store
     scanner

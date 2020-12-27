@@ -1,13 +1,18 @@
 #include "movie_scanner.h"
 
 #include "../ranges.h"
+#include "../spirit.h"
 #include "../store/fb_converters.h"
 
+#include <boost/algorithm/string/trim.hpp>
+#include <chrono>
+#include <date/date.h>
 #include <fmt/ostream.h>
 #include <map>
 #include <range/v3/action/push_back.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/transform.hpp>
+#include <regex>
 #include <spdlog/spdlog.h>
 #include <unordered_map>
 
@@ -65,6 +70,25 @@ auto get_upnp_class(std::u8string_view mime_type) -> std::u8string_view
         return u8"object.item.videoItem";
     else
         return u8"object.item";
+}
+
+auto normalize_title(std::u8string title) -> std::tuple<std::string, int>
+{
+    // TODO: This is a bit messy because std::regex doesn't support unicode.
+    static std::regex const re_wordsep{"[\\._](?=\\w)"};
+    static std::regex const re_year("\\(?([12]\\d{3})\\)?");
+
+    auto ntitle = std::regex_replace(reinterpret_cast<char const*>(title.c_str()), re_wordsep, " ");
+    int year = 0;
+    if (std::smatch m; std::regex_search(ntitle, m, re_year))
+    {
+#if !(__INTELLISENSE__ == 1)
+        parse(std::basic_string_view{m[1].first, m[1].second}, x3::int64, year);
+#endif
+        ntitle.erase(m[0].first, ntitle.end());
+    }
+    boost::algorithm::trim(ntitle);
+    return {std::move(ntitle), year};
 }
 
 constexpr std::u8string_view upnp_movie_class{u8"object.item.videoItem.movie"};
@@ -129,13 +153,21 @@ struct object_composer
         }
 
         auto data_off = CreateMediaItem(fbb, fbb.CreateVector(item_resources));
-        auto dc_title = put_string(name.generic_u8string(), fbb);
+        auto [title, year] = normalize_title(name_only);
+        auto dc_title = put_string(title, fbb);
         auto upnp_class = put_string_view(upnp_movie_class, fbb);
 
         auto object_builder = MediaObjectBuilder(fbb);
         object_builder.add_dc_title(dc_title);
         object_builder.add_upnp_class(upnp_class);
         object_builder.add_album_art(album_art);
+        if (year)
+        {
+            object_builder.add_dc_date(static_cast<date::sys_days>(
+                                           date::year_month_day{date::year{year}, date::January, date::day{1}})
+                                           .time_since_epoch()
+                                           .count());
+        }
         // Add keys to be updated later.
         {
             auto item_id = ObjectKey{};

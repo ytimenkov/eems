@@ -50,6 +50,7 @@ table MediaObject {
     dc_title: [ubyte] (required);
     upnp_class: [ubyte]  (required);
     album_art: MediaObjectRef;
+    dc_date: int64;
     data: ObjectUnion;
 }
 

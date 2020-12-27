@@ -5,6 +5,8 @@
 #include "store/fb_converters.h"
 
 #include <boost/uuid/uuid_io.hpp>
+#include <chrono>
+#include <date/date.h>
 #include <fmt/core.h>
 #include <range/v3/algorithm/count_if.hpp>
 #include <range/v3/algorithm/for_each.hpp>
@@ -117,11 +119,25 @@ auto serialize_media_object(pugi::xml_node& didl_root, std::string_view content_
 
         node.append_child("dc:title").text().set(as_cstring<char>(*object.dc_title()));
         node.append_child("upnp:class").text().set(as_cstring<char>(*object.upnp_class()));
+        if (auto days = object.dc_date(); days)
+        {
+            date::year_month_day const date{date::sys_days{std::chrono::days{days}}};
+            node.append_child("dc:date").text().set(
+                fmt::format("{:04}-{:02}-{:02}",
+                            static_cast<int>(date.year()),
+                            static_cast<unsigned>(date.month()),
+                            static_cast<unsigned>(date.day()))
+                    .c_str());
+        }
         if (auto album_art = object.album_art(); album_art)
         {
             auto const id = album_art->ref_nested_root()->key_as_ResourceKey()->id();
             // TODO: Some set dlna:protocolInfo extension to JPEG_TN, but it seems to be ignored.
-            node.append_child("upnp:albumArtURI").text().set(resource_url(id).c_str());
+            auto const url = resource_url(id);
+            node.append_child("upnp:albumArtURI").text().set(url.c_str());
+            auto aw = node.append_child("xbmc:artwork");
+            aw.text().set(url.c_str());
+            aw.append_attribute("type").set_value("poster");
         }
     };
 
@@ -169,6 +185,7 @@ auto browse_response(store_service::list_result_view const& list, std::string_vi
     auto [xml_doc, didl_root] = generate_preamble("DIDL-Lite", "urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/");
     didl_root.append_attribute("xmlns:upnp").set_value("urn:schemas-upnp-org:metadata-1-0/upnp/");
     didl_root.append_attribute("xmlns:dc").set_value("http://purl.org/dc/elements/1.1/");
+    didl_root.append_attribute("xmlns:xbmc").set_value("urn:schemas-xbmc-org:metadata-1-0/");
 
 #if __INTELLISENSE__ == 1
     auto const count = 0;

@@ -12,6 +12,7 @@ target_link_libraries(scanner
     Boost::Boost
     fmt::fmt
     spdlog::spdlog
+    date::date
     )
 
 target_include_directories(scanner PUBLIC ${CMAKE_CURRENT_BINARY_DIR})

@@ -10,7 +10,11 @@ class EemsConan(ConanFile):
     scm = {"type": "git", "url": "auto", "revision": "auto"}
 
     options = {"shared": [True, False], "fPIC": [True, False]}
-    default_options = {"shared": False, "fPIC": True}
+    default_options = {
+        "shared": False,
+        "fPIC": True,
+        "date:use_system_tz_db": True,
+    }
 
     requires = [
         "boost/1.75.0",
@@ -21,6 +25,10 @@ class EemsConan(ConanFile):
         "toml11/3.6.0",
         "leveldb/1.22",
         "flatbuffers/1.12.0",
+        "date/3.0.0@",
+    ]
+
+    build_requires = [
         "flatc/1.12.0",
     ]
 
