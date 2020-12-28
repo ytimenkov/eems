@@ -44,12 +44,22 @@ union ObjectUnion {
     MediaItem,
 }
 
+enum ArtworkType : byte {
+    Poster,
+    Thumbnail,
+}
+
+table Artwork {
+    ref: [ubyte] (nested_flatbuffer: "LibraryKey", required);
+    type: ArtworkType (key);
+}
+
 table MediaObject {
     id: ObjectKey (required);
     parent_id: ObjectKey (required);
     dc_title: [ubyte] (required);
     upnp_class: [ubyte]  (required);
-    album_art: MediaObjectRef;
+    artwork: [Artwork];
     dc_date: int64;
     data: ObjectUnion;
 }

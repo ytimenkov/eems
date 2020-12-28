@@ -98,6 +98,17 @@ struct file_info
     std::u8string_view mime_type;
 };
 
+inline auto classify_artwork(std::u8string_view name)
+    -> std::optional<ArtworkType>
+{
+    if (name.find(u8"poster") != name.npos)
+        return ArtworkType::Poster;
+    else if (name.find(u8"thumb") != name.npos)
+        return ArtworkType::Thumbnail;
+
+    return std::nullopt;
+}
+
 struct object_composer
 {
     int64_t& resource_id;
@@ -129,6 +140,7 @@ struct object_composer
         auto& [name, info] = p;
 
         std::vector<flatbuffers::Offset<ResourceRef>> item_resources;
+        std::vector<flatbuffers::Offset<Artwork>> item_artwork;
         flatbuffers::FlatBufferBuilder fbb{};
 
         // Main resource.
@@ -139,10 +151,33 @@ struct object_composer
 
         auto name_only = name.stem().generic_u8string();
 
+        for (auto art_it = artwork_.lower_bound(name_only); art_it != artwork_.end(); ++art_it)
+        {
+            if (!art_it->first.starts_with(name_only))
+                break;
+
+            auto name_suffix = static_cast<std::u8string_view>(art_it->first);
+            name_suffix.remove_prefix(name_only.size());
+            if (auto art_type = classify_artwork(name_suffix); art_type)
+            {
+                item_artwork.emplace_back(
+                    CreateArtwork(fbb,
+                                  put_key(store_resource(art_it->first, art_it->second),
+                                          fbb),
+                                  *art_type));
+            }
+        }
         if (auto folder_jpg_it = artwork_.find(u8"folder.jpg"); folder_jpg_it != artwork_.end())
         {
-            album_art = put_reference(store_resource(folder_jpg_it->first, folder_jpg_it->second), fbb);
+            item_artwork.emplace_back(
+                CreateArtwork(fbb,
+                              put_key(store_resource(
+                                          folder_jpg_it->first,
+                                          folder_jpg_it->second),
+                                      fbb),
+                              ArtworkType::Thumbnail));
         }
+
         for (auto subs_it = subtitles_.lower_bound(name_only); subs_it != subtitles_.end(); ++subs_it)
         {
             if (!subs_it->first.starts_with(name_only))
@@ -153,6 +188,8 @@ struct object_composer
         }
 
         auto data_off = CreateMediaItem(fbb, fbb.CreateVector(item_resources));
+        // NOTE: Normally partition is enough, but FB offers only this API 😥
+        auto artwork_off = put_sorted_vector(fbb, std::move(item_artwork));
         auto [title, year] = normalize_title(name_only);
         auto dc_title = put_string(title, fbb);
         auto upnp_class = put_string_view(upnp_movie_class, fbb);
@@ -160,7 +197,7 @@ struct object_composer
         auto object_builder = MediaObjectBuilder(fbb);
         object_builder.add_dc_title(dc_title);
         object_builder.add_upnp_class(upnp_class);
-        object_builder.add_album_art(album_art);
+        object_builder.add_artwork(artwork_off);
         if (year)
         {
             object_builder.add_dc_date(static_cast<date::sys_days>(

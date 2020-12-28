@@ -4,6 +4,7 @@ find_program(FLATC_PATH flatc)
 
 target_sources(store PRIVATE
     fb_converters.h
+    fb_vector_view.h
     store_service.cpp
     store_service.h
     )

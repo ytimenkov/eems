@@ -25,41 +25,6 @@ inline auto ordering_to_int(std::strong_ordering v) -> int
     else
         return 0;
 }
-
-template <typename T>
-class mutable_vector_view : public ranges::view_facade<mutable_vector_view<T>>
-{
-public:
-    mutable_vector_view() = default;
-    explicit mutable_vector_view(flatbuffers::Vector<flatbuffers::Offset<T>>* data)
-        : data_{data}
-    {
-    }
-
-private:
-    friend ranges::range_access;
-
-    class cursor
-    {
-    public:
-        cursor() noexcept = default;
-        explicit cursor(flatbuffers::Vector<flatbuffers::Offset<T>>::const_iterator it) noexcept
-            : it_{it} {}
-
-        auto read() const -> T& { return const_cast<T&>(**it_); }
-        auto next() noexcept -> void { ++it_; }
-        auto equal(const cursor& rhs) const -> bool { return it_ == rhs.it_; }
-
-    private:
-        flatbuffers::Vector<flatbuffers::Offset<T>>::const_iterator it_;
-    };
-
-    auto begin_cursor() const { return data_ ? cursor{data_->cbegin()} : cursor{}; }
-    auto end_cursor() const { return data_ ? cursor{data_->cend()} : cursor{}; }
-
-private:
-    flatbuffers::Vector<flatbuffers::Offset<T>>* data_{nullptr};
-};
 }
 
 // Define comparison operators for keys this way because those classes are
@@ -314,7 +279,7 @@ auto store_service::serialize_container(container_data const& data) -> flatbuffe
         fbb.CreateVector(
             data.objects |
             views::transform([&fbb](auto const& buf) {
-                return put_reference(buf, fbb);
+                return CreateMediaObjectRef(fbb, put_key(buf, fbb));
             }) |
             ranges::to<std::vector>()));
 

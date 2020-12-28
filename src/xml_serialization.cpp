@@ -3,6 +3,7 @@
 #include "net.h"
 #include "ranges.h"
 #include "store/fb_converters.h"
+#include "store/fb_vector_view.h"
 
 #include <boost/uuid/uuid_io.hpp>
 #include <chrono>
@@ -130,16 +131,22 @@ auto serialize_media_object(pugi::xml_node& didl_root, std::string_view content_
                             static_cast<unsigned>(date.day()))
                     .c_str());
         }
-        if (auto album_art = object.album_art(); album_art)
-        {
-            auto const id = album_art->ref_nested_root()->key_as_ResourceKey()->id();
+        ranges::for_each(fb_vector_view{object.artwork()}, [&node, resource_url](Artwork const& aw) {
+            auto const id = aw.ref_nested_root()->key_as_ResourceKey()->id();
             // TODO: Some set dlna:protocolInfo extension to JPEG_TN, but it seems to be ignored.
             auto const url = resource_url(id);
             node.append_child("upnp:albumArtURI").text().set(url.c_str());
-            auto aw = node.append_child("xbmc:artwork");
-            aw.text().set(url.c_str());
-            aw.append_attribute("type").set_value("poster");
-        }
+            auto aw_node = node.append_child("xbmc:artwork");
+            aw_node.text().set(url.c_str());
+            switch (aw.type())
+            {
+            case ArtworkType::Poster:
+                aw_node.append_attribute("type").set_value("poster");
+                break;
+            case ArtworkType::Thumbnail:
+                aw_node.append_attribute("type").set_value("thumb");
+            };
+        });
     };
 
     switch (object.data_type())
@@ -149,21 +156,19 @@ auto serialize_media_object(pugi::xml_node& didl_root, std::string_view content_
         auto& item = *static_cast<MediaItem const*>(object.data());
         auto node = didl_root.append_child("item");
         serialize_common_fields(node);
-        if (auto resources = item.resources(); resources)
-        {
-            ranges::for_each(*resources, [&node, &object, resource_url](ResourceRef const* r) {
-                if (auto res_key = r->ref_nested_root()->key_as_ResourceKey(); res_key)
-                {
-                    auto res = node.append_child("res");
-                    res.append_attribute("protocolInfo").set_value(as_cstring<char>(*r->protocol_info()));
-                    res.text().set(resource_url(res_key->id()).c_str());
-                }
-                else
-                {
-                    spdlog::error("Resource ref has no valid key: {}", object.id()->id());
-                }
-            });
-        }
+        ranges::for_each(fb_vector_view{item.resources()},
+                         [&node, resource_url](ResourceRef const& r) {
+                             if (auto res_key = r.ref_nested_root()->key_as_ResourceKey(); res_key)
+                             {
+                                 auto res = node.append_child("res");
+                                 res.append_attribute("protocolInfo").set_value(as_cstring<char>(*r.protocol_info()));
+                                 res.text().set(resource_url(res_key->id()).c_str());
+                             }
+                             else
+                             {
+                                 throw std::runtime_error{"Resource ref has no valid resource key"};
+                             }
+                         });
     }
     break;
     case ObjectUnion::MediaContainer:
