@@ -1,5 +1,6 @@
 #include "server.h"
 
+#include "as_result.h"
 #include "fs.h"
 #include "http_messages.h"
 #include "http_serialize.h"
@@ -44,7 +45,12 @@ auto server::handle_connections(net::ip::tcp::socket socket) -> net::awaitable<v
         {
             auto req = http_request{};
             stream.expires_after(std::chrono::seconds(30));
-            co_await http::async_read(stream, buffer, req);
+            auto rc = co_await http::async_read(stream, buffer, req, as_result(net::use_awaitable)); // TODO: use_async_result
+            if (!rc)
+            {
+                spdlog::debug("Read failed: {}", rc.error());
+                break;
+            }
 
             spdlog::debug("Got request: {} {}", req.method_string(), req.target());
 
@@ -77,8 +83,11 @@ auto server::handle_connections(net::ip::tcp::socket socket) -> net::awaitable<v
                 }
                 else if (begin->native() == "content")
                 {
-                    co_await content_service_.handle_request(stream, std::move(req), std::move(sub_path));
-                    continue;
+                    bool const server_more = co_await content_service_.handle_request(stream, std::move(req), std::move(sub_path));
+                    if (server_more)
+                        continue;
+                    else
+                        break;
                 }
                 else
                 {
@@ -88,8 +97,11 @@ auto server::handle_connections(net::ip::tcp::socket socket) -> net::awaitable<v
             }
             catch (http_error const& e)
             {
-                spdlog::warn("Request {} failed: {}, {}", req.target(), e.status, e.what());
                 exceptional_error = make_error_response(e.status, e.what(), req);
+            }
+            catch (upnp_error const& e)
+            {
+                exceptional_error = make_upnp_error_response(e, req);
             }
 
             if (exceptional_error)
@@ -101,7 +113,7 @@ auto server::handle_connections(net::ip::tcp::socket socket) -> net::awaitable<v
     catch (boost::system::system_error& e)
     {
         // It's ok when client closes connection.
-        if (e.code() != http::error::end_of_stream)
+        if (e.code() != http::error::end_of_stream && e.code() != boost::system::errc::connection_reset)
         {
             spdlog::warn("Exception during handling request: {}", e.what());
         }

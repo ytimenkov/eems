@@ -8,6 +8,33 @@
 namespace eems
 {
 struct soap_action_info;
+
+class upnp_error : public std::runtime_error
+{
+public:
+    enum class code : int
+    {
+        invalid_action = 401,
+        invalid_args = 402,
+
+        argument_value_invalid = 600,
+        argument_value_out_of_range = 601,
+
+        no_such_object = 701,
+    };
+
+    upnp_error(code c, char const* description)
+        : runtime_error{description},
+          code_{c}
+    {
+    }
+
+    code code_;
+};
+
+auto make_upnp_error_response(upnp_error const& error, http_request const& req)
+    -> error_response_ptr;
+
 class upnp_service
 {
 public:

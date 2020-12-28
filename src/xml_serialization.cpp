@@ -8,6 +8,7 @@
 #include <chrono>
 #include <date/date.h>
 #include <fmt/core.h>
+#include <pugixml.hpp>
 #include <range/v3/algorithm/count_if.hpp>
 #include <range/v3/algorithm/for_each.hpp>
 #include <spdlog/spdlog.h>
@@ -180,6 +181,14 @@ auto serialize_media_object(pugi::xml_node& didl_root, std::string_view content_
     return true;
 }
 
+inline auto add_soap_envelope(pugi::xml_document& xml_doc) -> pugi::xml_node
+{
+    auto soap_root = xml_doc.append_child("s:Envelope");
+    soap_root.append_attribute("xmlns:s").set_value("http://schemas.xmlsoap.org/soap/envelope/");
+    soap_root.append_attribute("s:encodingStyle").set_value("http://schemas.xmlsoap.org/soap/encoding/");
+    return soap_root.append_child("s:Body");
+}
+
 auto browse_response(store_service::list_result_view const& list, std::string_view base_url) -> beast::flat_buffer
 {
     auto [xml_doc, didl_root] = generate_preamble("DIDL-Lite", "urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/");
@@ -203,10 +212,7 @@ auto browse_response(store_service::list_result_view const& list, std::string_vi
     append_null(result);
 
     xml_doc.reset();
-    auto soap_root = xml_doc.append_child("s:Envelope");
-    soap_root.append_attribute("xmlns:s").set_value("http://schemas.xmlsoap.org/soap/envelope/");
-    soap_root.append_attribute("s:encodingStyle").set_value("http://schemas.xmlsoap.org/soap/encoding/");
-    auto soap_body = soap_root.append_child("s:Body");
+    auto soap_body = add_soap_envelope(xml_doc);
 
     // TODO: This is service type / action + Response
     auto response = soap_body.append_child("u:BrowseResponse");
@@ -218,6 +224,26 @@ auto browse_response(store_service::list_result_view const& list, std::string_vi
 
     // Just reuse same writer / buffer...
     result.consume(result.size());
+    xml_doc.print(writer);
+
+    return result;
+}
+
+auto error_response(int code, char const* description) -> beast::flat_buffer
+{
+    pugi::xml_document xml_doc;
+
+    auto soap_body = add_soap_envelope(xml_doc);
+    auto fault = soap_body.append_child("s:Fault");
+    fault.append_child("faultcode").text().set("s:Client");
+    fault.append_child("faultstring").text().set("UPnPError");
+    auto error = fault.append_child("detail").append_child("UPnPError");
+    error.append_attribute("xmlns").set_value("urn:schemas-upnp-org:control-1-0");
+    error.append_child("errorCode").text().set(code);
+    error.append_child("errorDescription").text().set(description);
+
+    beast::flat_buffer result;
+    buffer_writer writer{result};
     xml_doc.print(writer);
 
     return result;

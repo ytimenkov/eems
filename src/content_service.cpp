@@ -3,6 +3,7 @@
 #include "spirit.h"
 #include "store/fb_converters.h"
 
+#include <boost/asio/experimental/as_single.hpp>
 #include <boost/beast/core/file.hpp>
 #include <boost/beast/http/buffer_body.hpp>
 #include <boost/beast/http/write.hpp>
@@ -125,7 +126,7 @@ auto content_service::create_response(fs::path const& sub_path, http_request con
 }
 
 auto content_service::handle_request(tcp_stream& stream, http_request&& req, fs::path sub_path)
-    -> net::awaitable<void>
+    -> net::awaitable<bool>
 {
     auto [response, file, size] = create_response(sub_path, req);
 
@@ -138,13 +139,13 @@ auto content_service::handle_request(tcp_stream& stream, http_request&& req, fs:
     if (req.method() == http::verb::head)
     {
         // No need to send body for HEAD request.
-        co_return;
+        co_return true;
     }
     // Reuse request's buffer.
-    // TODO: Look at llfio's and its reading...
     auto& buffer = req.body();
     buffer.consume(buffer.size());
 
+    // TODO: Look at llfio's and its reading...
     beast::error_code ec;
     do
     {
@@ -158,13 +159,20 @@ auto content_service::handle_request(tcp_stream& stream, http_request&& req, fs:
         {
             spdlog::error("Read failed: {}", ec);
             stream.close();
-            co_return;
+            co_return false;
         }
         buffer.commit(read_bytes);
-        auto const written_bytes = co_await net::async_write(stream, buffer.data());
+
+        auto const [ec1, written_bytes] = co_await net::async_write(stream, buffer.data(),
+                                                                    net::experimental::as_single_t<net::use_awaitable_t<>>{});
+        if (ec1)
+        {
+            co_return false;
+        }
         buffer.consume(written_bytes);
         size -= written_bytes;
     } while (true);
+    co_return true;
 }
 
 }

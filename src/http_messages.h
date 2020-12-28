@@ -27,7 +27,7 @@ public:
     http::status status;
 };
 
-using error_response_ptr = std::unique_ptr<http::response<http::string_body>>;
+using error_response_ptr = std::unique_ptr<http::response<http::basic_dynamic_body<beast::flat_buffer>>>;
 
 auto make_error_response(http::status, std::string_view reason, http_request const& req)
     -> error_response_ptr;

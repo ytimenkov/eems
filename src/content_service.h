@@ -19,7 +19,7 @@ public:
     }
 
     auto handle_request(tcp_stream& stream, http_request&& req, fs::path sub_path)
-        -> net::awaitable<void>;
+        -> net::awaitable<bool>;
 
 private:
     auto create_response(fs::path const& sub_path, http_request const& req)

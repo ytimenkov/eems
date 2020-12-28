@@ -14,20 +14,17 @@
 
 namespace eems
 {
-enum class browse_flag
-{
-    metadata,
-    direct_children,
-};
 
 auto create_buffer_response(http_request const& req,
-                            boost::asio::const_buffer buffer, std::string_view mime_type)
+                            boost::asio::const_buffer buffer,
+                            std::string_view mime_type,
+                            http::status status = http::status::ok)
     -> http::response<http::buffer_body>
 {
     auto response = http::response<http::buffer_body>{
         std::piecewise_construct,
         std::make_tuple(const_cast<void*>(buffer.data()), buffer.size(), false), // TODO: It's a pity that bufer_body is always non-const.
-        std::make_tuple(http::status::ok, req.version())};
+        std::make_tuple(status, req.version())};
     response.set(http::field::server, BOOST_BEAST_VERSION_STRING);
     response.set(http::field::content_type, mime_type);
     if (req.method() == http::verb::post)
@@ -46,6 +43,21 @@ inline auto make_string_buffer(char const* str)
     return {str, std::strlen(str)};
 }
 
+auto make_upnp_error_response(upnp_error const& error, http_request const& req)
+    -> error_response_ptr
+{
+    auto res = std::make_unique<error_response_ptr::element_type>(
+        std::piecewise_construct,
+        std::forward_as_tuple(error_response(static_cast<int>(error.code_), error.what())),
+        std::make_tuple(http::status::internal_server_error, req.version()));
+
+    res->set(http::field::server, BOOST_BEAST_VERSION_STRING);
+    res->set(http::field::content_type, "text/xml");
+    res->keep_alive(req.keep_alive());
+    res->prepare_payload();
+    return res;
+}
+
 auto upnp_service::handle_cds_browse(tcp_stream& stream, http_request&& req, soap_action_info const& soap_req)
     -> net::awaitable<void>
 {
@@ -55,8 +67,7 @@ auto upnp_service::handle_cds_browse(tcp_stream& stream, http_request&& req, soa
     int64_t object_id;
     if (auto const id = soap_req.params.child_value("ObjectID"); !parse(std::string_view{id}, x3::int64, object_id))
     {
-        // TODO: find out proper exception type.
-        throw std::runtime_error(fmt::format("Invalid id: {}", id));
+        throw upnp_error{upnp_error::code::no_such_object, "Invalid ID"};
     }
 
     auto contents = [flag = std::string_view{soap_req.params.child_value("BrowseFlag")},
@@ -67,8 +78,7 @@ auto upnp_service::handle_cds_browse(tcp_stream& stream, http_request&& req, soa
         else if (flag == "BrowseMetadata")
             return store_service.get(key);
         else
-            // TODO: Here we can send SOAP error instead. Fault or so...
-            throw http_error{http::status::bad_request, "Invalid BrowseFlag"};
+            throw upnp_error{upnp_error::code::argument_value_out_of_range, "Invalid BrowseFlag"};
     }();
 
     co_await http::async_write(
@@ -108,5 +118,4 @@ auto upnp_service::handle_upnp_request(tcp_stream& stream, http_request&& req, f
     }
     throw http_error{http::status::not_found, "Not found"};
 }
-
 }

@@ -5,6 +5,7 @@ add_subdirectory(scanner)
 add_executable(eems)
 
 target_sources(eems PRIVATE
+    as_result.h
     config.cpp
     config.h
     content_service.cpp
