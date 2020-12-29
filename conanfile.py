@@ -14,6 +14,10 @@ class EemsConan(ConanFile):
         "shared": False,
         "fPIC": True,
         "date:use_system_tz_db": True,
+        "boost:header_only": False,
+        "boost:system_no_deprecated": True,
+        "boost:asio_no_deprecated": True,
+        "boost:filesystem_no_deprecated": True,
     }
 
     requires = [
@@ -38,6 +42,8 @@ class EemsConan(ConanFile):
 
     def configure(self):
         tools.check_min_cppstd(self, "20")
+        if self.options.shared:
+            del self.options.fPIC
 
     def toolchain(self):
         tc = CMakeToolchain(self)

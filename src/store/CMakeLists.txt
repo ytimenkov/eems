@@ -20,7 +20,6 @@ target_link_libraries(store
     range-v3::range-v3
     PRIVATE
     spdlog::spdlog
-    Boost::Boost
     )
 
 target_include_directories(store PUBLIC ${CMAKE_CURRENT_BINARY_DIR})

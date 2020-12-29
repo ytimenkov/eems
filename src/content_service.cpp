@@ -1,5 +1,6 @@
 #include "content_service.h"
 
+#include "as_result.h"
 #include "spirit.h"
 #include "store/fb_converters.h"
 
@@ -163,14 +164,14 @@ auto content_service::handle_request(tcp_stream& stream, http_request&& req, fs:
         }
         buffer.commit(read_bytes);
 
-        auto const [ec1, written_bytes] = co_await net::async_write(stream, buffer.data(),
-                                                                    net::experimental::as_single_t<net::use_awaitable_t<>>{});
-        if (ec1)
+        auto const written_bytes = co_await net::async_write(stream, buffer.data(),
+                                                   as_result(net::use_awaitable)); // TODO: use_async_result
+        if (!written_bytes)
         {
             co_return false;
         }
-        buffer.consume(written_bytes);
-        size -= written_bytes;
+        buffer.consume(written_bytes.value());
+        size -= written_bytes.value();
     } while (true);
     co_return true;
 }

@@ -9,7 +9,7 @@ target_link_libraries(scanner
     PUBLIC
     store
     PRIVATE
-    Boost::Boost
+    Boost::headers
     fmt::fmt
     spdlog::spdlog
     date::date

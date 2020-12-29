@@ -32,7 +32,7 @@ target_sources(eems PRIVATE
 
 target_link_libraries(eems PUBLIC
     std::coroutines
-    Boost::Boost
+    Boost::headers
     fmt::fmt
     spdlog::spdlog
     pugixml::pugixml
@@ -42,4 +42,6 @@ target_link_libraries(eems PUBLIC
     asio
     store
     scanner
+    PRIVATE
+    Boost::program_options
     )
