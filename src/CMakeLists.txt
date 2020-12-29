@@ -10,6 +10,7 @@ target_sources(eems PRIVATE
     config.h
     content_service.cpp
     content_service.h
+    data_config.h
     discovery_service.cpp
     discovery_service.h
     fs.h
@@ -20,10 +21,14 @@ target_sources(eems PRIVATE
     logging.h
     main.cpp
     net.h
+    ranges.h
+    server_config.h
     server.cpp
     server.h
     soap.cpp
     soap.h
+    spirit.h
+    store_config.h
     upnp.cpp
     upnp.h
     xml_serialization.cpp

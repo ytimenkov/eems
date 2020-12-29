@@ -3,6 +3,7 @@
 
 #include "fs.h"
 #include "http_messages.h"
+#include "server_config.h"
 #include "store/store_service.h"
 
 namespace eems

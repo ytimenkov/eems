@@ -18,19 +18,21 @@ int main(int argc, char const* argv[])
     // TODO: Configure log file name
     spdlog::set_default_logger(std::move(eems::intialize_logging("eems.log")));
 
-    spdlog::info("Configs: {}", config.data.content_directories);
-
     eems::store_service store_service{config.db};
     eems::upnp_service upnp_service{store_service, config.server};
     eems::content_service content_service{store_service};
     eems::server server{config.server, upnp_service, content_service};
     eems::discovery_service discovery_service{config.server};
-    eems::movie_scanner movie_scanner{};
 
-    // TODO: This is temporary:
-    for (auto& path : config.data.content_directories)
+    eems::movie_scanner movie_scanner{store_service};
+    for (auto& dir : config.data.content_directories)
     {
-        movie_scanner.scan_all(path, store_service);
+        spdlog::info("Scanning: {}", dir.path);
+        std::visit(eems::lambda_visitor{
+                       [&path = dir.path, &movie_scanner](eems::movies_library_config const& config) {
+                           movie_scanner.scan_all(path, config);
+                       }},
+                   dir.scanner_config);
     }
 
     boost::asio::io_context io_context{1};

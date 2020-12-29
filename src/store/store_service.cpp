@@ -62,8 +62,7 @@ int store_service::fb_comparator::Compare(leveldb::Slice const& lhs_s, leveldb::
     return ordering_to_int(cmp);
 }
 
-store_service::store_service(db_config const& config)
-
+store_service::store_service(store_config const& config)
 {
     leveldb::DB* db = nullptr;
     leveldb::Options options;
@@ -71,7 +70,7 @@ store_service::store_service(db_config const& config)
     // While developing...
     options.error_if_exists = true;
     options.comparator = &comparator_;
-    leveldb::Status status = leveldb::DB::Open(options, config.path.native(), &db);
+    leveldb::Status status = leveldb::DB::Open(options, config.db_path.native(), &db);
     db_.reset(db);
     if (!status.ok())
     {
@@ -145,6 +144,7 @@ inline auto store_service::create_iterator() const -> std::unique_ptr<::leveldb:
     return std::unique_ptr<leveldb::Iterator>{db_->NewIterator(leveldb::ReadOptions{})};
 }
 
+#if !(__INTELLISENSE__ == 1)
 auto store_service::put_items(ObjectKey parent,
                               std::vector<flatbuffers::DetachedBuffer>&& items,
                               std::vector<std::tuple<ResourceKey, flatbuffers::DetachedBuffer>>&& resources) -> void
@@ -197,6 +197,7 @@ auto store_service::put_items(ObjectKey parent,
     // Or serializing path will also require a copy and therefore it is still possible to
     // reserve certain prefix except for / (or drive letter) for virtual listings...
 }
+#endif
 
 auto store_service::list_result_view::cursor::read() const -> MediaObject const&
 {
@@ -241,6 +242,7 @@ auto store_service::get_resource(ResourceKey id) -> resource_result
     return result;
 }
 
+#if !(__INTELLISENSE__ == 1)
 auto store_service::deserialize_container(std::string const& key, ::leveldb::Iterator& iter) -> container_data
 {
     iter.Seek(key);
@@ -297,5 +299,6 @@ auto store_service::serialize_container(container_data const& data) -> flatbuffe
     fbb.Finish(builder.Finish());
     return fbb.Release();
 }
+#endif
 
 }

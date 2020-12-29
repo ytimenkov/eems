@@ -3,12 +3,21 @@
 
 #include "../fs.h"
 #include "../store/store_service.h"
+#include "../data_config.h"
 
 namespace eems
 {
 class movie_scanner
 {
 public:
+    explicit movie_scanner(store_service& store)
+        : store_{store}
+    {
+    }
+
+    auto scan_all(fs::path const& root, movies_library_config const& config) -> void;
+
+private:
     struct scan_result
     {
         std::vector<flatbuffers::DetachedBuffer> items;
@@ -18,9 +27,8 @@ public:
 
     auto scan_directory(fs::path const& path, int64_t& resource_id) -> movie_scanner::scan_result;
 
-    auto scan_all(fs::path const& root, store_service& store) -> void;
-
 private:
+    store_service& store_;
 };
 
 }

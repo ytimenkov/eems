@@ -6,6 +6,7 @@
 #include <boost/program_options.hpp>
 #include <boost/uuid/name_generator.hpp>
 #include <boost/uuid/string_generator.hpp>
+#include <fmt/core.h>
 #include <toml.hpp>
 
 namespace eems
@@ -34,20 +35,41 @@ inline auto try_get(toml_table const& table, std::string const& value, F func)
         func(toml::get<T>(it->second));
     }
 }
+
+auto load_movies_config(toml_table const& data)
+    -> movies_library_config
+{
+    movies_library_config result{};
+    try_get<bool>(data, "use_folder_names"s, [&](auto& val) {
+        result.use_folder_names = val;
+    });
+    return result;
+}
+
 auto load_data_config(toml_array const& data, data_config& config)
     -> void
 {
     for (auto const& table : data)
     {
-        config.content_directories.emplace_back(toml::find<std::string>(table, "path"));
+        auto& type = toml::find<std::string>(table, "type"s);
+        auto& path = toml::find<std::string>(table, "path"s);
+
+        if (type == "movies")
+        {
+            config.content_directories.emplace_back(path, load_movies_config(table.as_table()));
+        }
+        else
+        {
+            throw std::runtime_error(fmt::format("Unknown content type at line {}", table.location().line()));
+        }
     }
 }
 
-auto load_db_config(toml_table const& data, db_config& config)
+auto load_db_config(toml_table const& data, store_config& config)
     -> void
 {
     try_get<std::string>(data, "path"s, [&](auto& val) {
-        config.path = val;
+        config.db_path = val;
     });
 }
 

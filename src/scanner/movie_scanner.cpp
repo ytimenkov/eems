@@ -301,14 +301,14 @@ auto movie_scanner::scan_directory(fs::path const& path, int64_t& resource_id)
     return result;
 }
 
-auto movie_scanner::scan_all(fs::path const& root, store_service& store) -> void
+auto movie_scanner::scan_all(fs::path const& root, movies_library_config const& config) -> void
 {
     auto directories = std::vector<fs::path>{root};
-    auto resource_id = store.get_next_id<ResourceKey>();
+    auto resource_id = store_.get_next_id<ResourceKey>();
     while (!directories.empty())
     {
         auto scan_result = scan_directory(directories.back(), resource_id);
-        store.put_items({1}, std::move(scan_result.items), std::move(scan_result.resources));
+        store_.put_items({1}, std::move(scan_result.items), std::move(scan_result.resources));
         directories.pop_back();
         ranges::push_back(directories, scan_result.directories);
     }

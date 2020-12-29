@@ -1,8 +1,8 @@
 #ifndef EEMS_XML_SERIALIZATION_H
 #define EEMS_XML_SERIALIZATION_H
 
-#include "config.h"
 #include "net.h"
+#include "server_config.h"
 #include "store/store_service.h"
 
 #include <boost/beast/core/flat_buffer.hpp>

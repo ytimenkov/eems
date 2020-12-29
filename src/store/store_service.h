@@ -1,8 +1,8 @@
 #ifndef EEMS_STORE_SERVICE_H
 #define EEMS_STORE_SERVICE_H
 
-#include "../config.h"
 #include "../ranges.h"
+#include "../store_config.h"
 #include "schema_generated.h"
 
 #include <leveldb/comparator.h>
@@ -16,7 +16,7 @@ namespace eems
 class store_service
 {
 public:
-    explicit store_service(db_config const& config);
+    explicit store_service(store_config const& config);
     ~store_service() noexcept;
 
     template <typename TKey>

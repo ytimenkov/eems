@@ -1,8 +1,8 @@
 #ifndef EEMS_DISCOVERY_SERVICE_H
 #define EEMS_DISCOVERY_SERVICE_H
 
-#include "config.h"
 #include "net.h"
+#include "server_config.h"
 
 #include <boost/asio/use_awaitable.hpp>
 #include <boost/beast/http/empty_body.hpp>
