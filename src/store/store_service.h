@@ -15,6 +15,18 @@ namespace eems
 
 constexpr auto upnp_container_class{u8"object.container"};
 
+struct container_meta
+{
+    ObjectKey id;
+    ObjectKey parent_id;
+    std::u8string dc_title;
+    std::u8string upnp_class;
+    std::vector<std::tuple<std::string, ArtworkType>> artwork;
+};
+
+auto serialize_container(std::vector<std::string> const& contents, container_meta const& meta)
+    -> flatbuffers::DetachedBuffer;
+
 class store_service
 {
 public:
@@ -103,19 +115,8 @@ private:
 
     auto create_iterator() const -> std::unique_ptr<::leveldb::Iterator>;
 
-    struct container_meta
-    {
-        ObjectKey id;
-        ObjectKey parent_id;
-        std::u8string dc_title;
-        std::u8string upnp_class;
-        std::vector<std::tuple<std::string, ArtworkType>> artwork;
-    };
     auto deserialize_container(std::string const& key, ::leveldb::Iterator& iter, bool meta)
         -> std::tuple<std::vector<std::string>, std::unique_ptr<container_meta>>;
-
-    auto serialize_container(std::vector<std::string> const& contents, container_meta const& meta)
-        -> flatbuffers::DetachedBuffer;
 
 private:
     fb_comparator comparator_;

@@ -285,7 +285,7 @@ auto store_service::deserialize_container(std::string const& key, ::leveldb::Ite
     return {std::move(container_data), std::move(meta)};
 }
 
-auto store_service::serialize_container(std::vector<std::string> const& contents, container_meta const& meta)
+auto serialize_container(std::vector<std::string> const& contents, container_meta const& meta)
     -> flatbuffers::DetachedBuffer
 {
     flatbuffers::FlatBufferBuilder fbb{};

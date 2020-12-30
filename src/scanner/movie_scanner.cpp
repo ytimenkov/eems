@@ -147,8 +147,7 @@ struct object_composer
 
         // Main resource.
         item_resources.emplace_back(
-            CreateResourceRef(fbb,
-                              store_resource(info), info));
+            CreateResourceRef(fbb, store_resource(info), info));
 
         flatbuffers::Offset<MediaObjectRef> album_art{};
 
@@ -186,8 +185,7 @@ struct object_composer
                 break;
 
             item_resources.emplace_back(
-                CreateResourceRef(fbb,
-                                  store_resource(subs_it->second), subs_it->second));
+                CreateResourceRef(fbb, store_resource(subs_it->second), subs_it->second));
         }
 
         auto data_off = CreateMediaItem(fbb, fbb.CreateVector(item_resources));
@@ -221,10 +219,8 @@ struct object_composer
 
     auto store_resource(file_info const& info) -> std::string
     {
-        auto res = context.serialize_resource(info);
-        auto serialized_key = serialize_key(std::get<ResourceKey>(res));
-        resources.emplace_back(std::move(res));
-        return serialized_key;
+        auto& res = resources.emplace_back(context.serialize_resource(info));
+        return serialize_key(std::get<ResourceKey>(res));
     }
 
     auto get_folder_artwork() -> std::pair<std::pair<std::u8string const, file_info> const*, ArtworkType>
@@ -378,44 +374,26 @@ auto movie_scanner::create_container(std::u8string_view name,
                                      std::tuple<file_info const*, ArtworkType> artwork)
     -> ObjectKey
 {
-    flatbuffers::FlatBufferBuilder fbb{};
-
-    std::vector<flatbuffers::Offset<Artwork>> folder_artwork;
-    std::vector<std::tuple<ResourceKey, flatbuffers::DetachedBuffer>> resources;
     std::vector<flatbuffers::DetachedBuffer> items;
+    std::vector<std::tuple<ResourceKey, flatbuffers::DetachedBuffer>> resources;
+
+    container_meta meta{
+        .id{next_object_key()},
+        .parent_id{get_movies_folder_id()},
+        .dc_title{std::u8string{name}},
+        .upnp_class{upnp_container_class}};
 
     if (auto [info, art_type] = artwork; info)
     {
-        auto res = serialize_resource(*info);
-        auto serialized_key = serialize_key(std::get<ResourceKey>(res));
-        resources.emplace_back(std::move(res));
-
-        folder_artwork.emplace_back(
-            CreateArtwork(fbb, CreateLibraryKey(fbb, serialized_key), art_type));
+        auto& [res_key, res_buf] = resources.emplace_back(serialize_resource(*info));
+        meta.artwork.emplace_back(serialize_key(res_key), art_type);
     }
 
-    auto const parent_key = get_movies_folder_id();
-    auto const new_key = next_object_key();
+    items.emplace_back(serialize_container({}, meta));
 
-    auto title_off = put_string_view(name, fbb);
-    auto class_off = put_string_view<char8_t>(upnp_container_class, fbb);
-    auto container_off = CreateMediaContainer(fbb);
-    auto artwork_off = put_sorted_vector(fbb, std::move(folder_artwork));
+    store_.put_items(meta.parent_id, std::move(items), std::move(resources));
 
-    MediaObjectBuilder builder{fbb};
-    builder.add_id(&new_key);
-    builder.add_parent_id(&parent_key);
-    builder.add_dc_title(title_off);
-    builder.add_upnp_class(class_off);
-    builder.add_artwork(artwork_off);
-    builder.add_data_type(ObjectUnion::MediaContainer);
-    builder.add_data(container_off.Union());
-
-    fbb.Finish(builder.Finish());
-    items.emplace_back(fbb.Release());
-    store_.put_items(parent_key, std::move(items), std::move(resources));
-
-    return new_key;
+    return meta.id;
 }
 
 auto movie_scanner::serialize_resource(file_info const& info)
