@@ -11,6 +11,7 @@
 #include <map>
 #include <range/v3/action/push_back.hpp>
 #include <range/v3/algorithm/find_if.hpp>
+#include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/transform.hpp>
 #include <regex>
@@ -244,21 +245,21 @@ struct object_composer
     }
 };
 
-auto movie_scanner::scan_directory(fs::path const& path, movies_library_config const& config)
-    -> std::vector<fs::path>
+auto movie_scanner::scan_directory(fs::path const& path, movies_library_config const& config, ObjectKey parent)
+    -> std::vector<std::tuple<fs::path, ObjectKey>>
 {
     spdlog::debug("Scanning: {}", path);
 
-    std::vector<fs::path> directories{};
+    std::vector<std::tuple<fs::path, ObjectKey>> directories{};
 
     std::map<fs::path, file_info> videos;
-    object_composer composer{*this};
+    object_composer composer{.context = *this, .parent_id = parent};
 
     for (auto item : fs::directory_iterator{path})
     {
         if (item.is_directory())
         {
-            directories.emplace_back(item);
+            directories.emplace_back(item, parent);
             continue;
         }
         else if (!item.is_regular_file())
@@ -292,23 +293,31 @@ auto movie_scanner::scan_directory(fs::path const& path, movies_library_config c
         }
     }
 
-#if !(__INTELLISENSE__ == 1)
-    if (auto movies_count = videos.size(); movies_count > 0)
+    if (config.use_collections)
     {
-        if (movies_count > 1 && config.use_collections)
+        auto const artwork = composer.get_folder_artwork();
+
+        if ((artwork.first && !directories.empty()) || (videos.size() > 1))
         {
-            auto const artwork = composer.get_folder_artwork();
             composer.parent_id = create_container(
                 path.stem().generic_u8string(),
                 {artwork.first ? &artwork.first->second : nullptr, artwork.second});
-        }
-        else
-        {
-            composer.parent_id = get_movies_folder_id();
-            if (config.use_folder_names)
-                composer.folder_name = path.stem().u8string();
-        }
 
+            if (artwork.first)
+            {
+                ranges::for_each(directories, [collection_key = composer.parent_id](auto& tup) {
+                    std::get<ObjectKey>(tup) = collection_key;
+                });
+            }
+        }
+    }
+
+    if (config.use_folder_names && videos.size() == 1)
+        composer.folder_name = path.stem().u8string();
+
+#if !(__INTELLISENSE__ == 1)
+    if (videos.size() > 0)
+    {
         store_.put_items(
             composer.parent_id,
             views::transform(videos, std::ref(composer)) | ranges::to<std::vector>(),
@@ -321,7 +330,7 @@ auto movie_scanner::scan_directory(fs::path const& path, movies_library_config c
 
 auto movie_scanner::scan_all(fs::path const& root, movies_library_config const& original_config) -> void
 {
-    auto directories = std::vector<fs::path>{root};
+    auto directories = std::vector<std::tuple<fs::path, ObjectKey>>{{root, get_movies_folder_id()}};
     next_resource_id_ = store_.get_next_id<ResourceKey>();
     next_object_id_ = store_.get_next_id<ObjectKey>();
 
@@ -329,7 +338,8 @@ auto movie_scanner::scan_all(fs::path const& root, movies_library_config const& 
     config.use_collections = false;
     while (!directories.empty())
     {
-        auto new_directories = scan_directory(directories.back(), config);
+        auto& [path, parent] = directories.back();
+        auto new_directories = scan_directory(path, config, parent);
         directories.pop_back();
         ranges::push_back(directories, new_directories);
         config.use_collections = original_config.use_collections;

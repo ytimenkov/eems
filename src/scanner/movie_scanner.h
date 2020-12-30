@@ -26,8 +26,8 @@ public:
         -> void;
 
 private:
-    auto scan_directory(fs::path const& path, movies_library_config const& config)
-        -> std::vector<fs::path>;
+    auto scan_directory(fs::path const& path, movies_library_config const& config, ObjectKey parent)
+        -> std::vector<std::tuple<fs::path, ObjectKey>>;
 
     auto create_container(std::u8string_view name,
                           std::tuple<file_info const*, ArtworkType> artwork)
