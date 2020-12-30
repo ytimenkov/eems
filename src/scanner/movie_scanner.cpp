@@ -313,16 +313,20 @@ auto movie_scanner::scan_directory(fs::path const& path, movies_library_config c
     return directories;
 }
 
-auto movie_scanner::scan_all(fs::path const& root, movies_library_config const& config) -> void
+auto movie_scanner::scan_all(fs::path const& root, movies_library_config const& original_config) -> void
 {
     auto directories = std::vector<fs::path>{root};
     next_resource_id_ = store_.get_next_id<ResourceKey>();
     next_object_id_ = store_.get_next_id<ObjectKey>();
+
+    auto config = original_config;
+    config.use_collections = false;
     while (!directories.empty())
     {
         auto new_directories = scan_directory(directories.back(), config);
         directories.pop_back();
         ranges::push_back(directories, new_directories);
+        config.use_collections = original_config.use_collections;
     }
 }
 
