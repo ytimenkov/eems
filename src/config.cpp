@@ -88,6 +88,10 @@ auto load_server_config(toml_table const& data, server_config& config)
     try_get<std::string>(data, "hostname"s, [&](auto& val) {
         config.host_name = val;
     });
+
+    try_get<std::string>(data, "name"s, [&](auto& val) {
+        config.name = val;
+    });
 }
 
 auto load_logging_config(toml_table const& data, logging_config& config)
@@ -138,6 +142,11 @@ auto load_configuration(int argc, char const* argv[])
     if (result.server.host_name.empty())
     {
         result.server.host_name = net::ip::host_name();
+    }
+
+    if (result.server.name.empty())
+    {
+        result.server.name = fmt::format("EEMSat {}", result.server.host_name);
     }
 
     if (result.server.uuid.is_nil())

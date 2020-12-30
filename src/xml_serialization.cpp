@@ -72,7 +72,7 @@ auto root_device_description(server_config const& server_config) -> beast::flat_
     auto device = root.append_child("device");
     // TODO: Clean up duplication between upnp services and dsicovery
     device.append_child("deviceType").text().set("urn:schemas-upnp-org:device:MediaServer:1");
-    device.append_child("friendlyName").text().set(fmt::format("EEMS at {}", server_config.host_name).c_str());
+    device.append_child("friendlyName").text().set(server_config.name.c_str());
     device.append_child("UDN").text().set(fmt::format("uuid:{}", to_string(server_config.uuid)).c_str());
 
     {

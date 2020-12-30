@@ -12,6 +12,7 @@ struct server_config
     boost::uuids::uuid uuid;
     unsigned short listen_port{0};
     std::string host_name;
+    std::string name;
     std::string base_url;
 };
 
