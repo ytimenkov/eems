@@ -61,36 +61,52 @@ int store_service::fb_comparator::Compare(leveldb::Slice const& lhs_s, leveldb::
     return ordering_to_int(cmp);
 }
 
-store_service::store_service(store_config const& config)
+auto store_service::open_db(store_config const& config)
+    -> bool
 {
     leveldb::DB* db = nullptr;
-    leveldb::Options options;
-    options.create_if_missing = true;
-    // While developing...
-    options.error_if_exists = true;
+    leveldb::Options options{};
     options.comparator = &comparator_;
     leveldb::Status status = leveldb::DB::Open(options, config.db_path.native(), &db);
+    if (status.ok())
+    {
+        db_.reset(db);
+        spdlog::info("Opening existing DB");
+        // TODO: Validate DB.
+        return true;
+    }
+    else if (!status.IsInvalidArgument())
+    {
+        spdlog::error("Failed to open/create DB: {}", status.ToString());
+        throw std::runtime_error(status.ToString());
+    }
+
+    spdlog::info("Initializing new DB");
+
+    options.create_if_missing = true;
+    options.error_if_exists = true;
+    status = leveldb::DB::Open(options, config.db_path.native(), &db);
     db_.reset(db);
+
     if (!status.ok())
     {
         spdlog::error("Failed to open/create DB: {}", status.ToString());
         throw std::runtime_error(status.ToString());
     }
 
+    container_meta root_container{
+        .id{0},
+        .parent_id{-1},
+        .upnp_class{upnp_container_class}};
+    auto container_buf = serialize_container({}, root_container);
+    status = db_->Put(leveldb::WriteOptions{},
+                      serialize_key(ObjectKey{0}),
+                      leveldb::Slice{reinterpret_cast<char const*>(container_buf.data()), container_buf.size()});
+    if (!status.ok())
     {
-        container_meta root_container{
-            .id{0},
-            .parent_id{-1},
-            .upnp_class{upnp_container_class}};
-        auto container_buf = serialize_container({}, root_container);
-        status = db_->Put(leveldb::WriteOptions{},
-                          serialize_key(ObjectKey{0}),
-                          leveldb::Slice{reinterpret_cast<char const*>(container_buf.data()), container_buf.size()});
-        if (!status.ok())
-        {
-            throw std::runtime_error("Failed to create root container");
-        }
+        throw std::runtime_error("Failed to create root container");
     }
+    return false;
 }
 
 store_service::~store_service() = default;

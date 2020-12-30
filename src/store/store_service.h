@@ -30,7 +30,6 @@ auto serialize_container(std::vector<std::string> const& contents, container_met
 class store_service
 {
 public:
-    explicit store_service(store_config const& config);
     ~store_service() noexcept;
 
     template <typename TKey>
@@ -103,6 +102,8 @@ public:
     };
 
     auto get_resource(ResourceKey id) -> resource_result;
+
+    auto open_db(store_config const& config) -> bool;
 
 private:
     struct fb_comparator final : leveldb::Comparator

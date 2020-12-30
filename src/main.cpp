@@ -18,21 +18,25 @@ int main(int argc, char const* argv[])
     // TODO: Configure log file name
     spdlog::set_default_logger(std::move(eems::intialize_logging("eems.log")));
 
-    eems::store_service store_service{config.db};
+    eems::store_service store_service{};
     eems::upnp_service upnp_service{store_service, config.server};
     eems::content_service content_service{store_service};
     eems::server server{config.server, upnp_service, content_service};
     eems::discovery_service discovery_service{config.server};
 
-    eems::movie_scanner movie_scanner{store_service};
-    for (auto& dir : config.data.content_directories)
+    if (auto const db_existed = store_service.open_db(config.db); !db_existed)
     {
-        spdlog::info("Scanning: {}", dir.path);
-        std::visit(eems::lambda_visitor{
-                       [&path = dir.path, &movie_scanner](eems::movies_library_config const& config) {
-                           movie_scanner.scan_all(path, config);
-                       }},
-                   dir.scanner_config);
+        // Fresh DB, scan.
+        eems::movie_scanner movie_scanner{store_service};
+        for (auto& dir : config.data.content_directories)
+        {
+            spdlog::info("Scanning: {}", dir.path);
+            std::visit(eems::lambda_visitor{
+                           [&path = dir.path, &movie_scanner](eems::movies_library_config const& config) {
+                               movie_scanner.scan_all(path, config);
+                           }},
+                       dir.scanner_config);
+        }
     }
 
     boost::asio::io_context io_context{1};
