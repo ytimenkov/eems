@@ -84,6 +84,10 @@ auto load_server_config(toml_table const& data, server_config& config)
         // TODO: check for overflow.
         config.listen_port = val;
     });
+
+    try_get<std::string>(data, "hostname"s, [&](auto& val) {
+        config.host_name = val;
+    });
 }
 
 auto load_configuration(int argc, char const* argv[])
