@@ -115,7 +115,7 @@ inline auto CreateResourceRef(flatbuffers::FlatBufferBuilder& fbb,
 struct object_composer
 {
     movie_scanner& context;
-    fs::path const& base_path;
+    std::u8string folder_name;
 
     std::vector<std::tuple<ResourceKey, flatbuffers::DetachedBuffer>> resources;
     std::map<std::u8string, file_info, std::less<>> subtitles_;
@@ -153,17 +153,18 @@ struct object_composer
 
         flatbuffers::Offset<MediaObjectRef> album_art{};
 
-        auto name_only = name.stem().generic_u8string();
+        auto resource_prefix = folder_name.empty() ? name.stem().generic_u8string() : std::u8string{};
 
-        for (auto art_it = artwork_.lower_bound(name_only); art_it != artwork_.end(); ++art_it)
+        for (auto art_it = artwork_.lower_bound(resource_prefix); art_it != artwork_.end(); ++art_it)
         {
-            if (!art_it->first.starts_with(name_only))
+            if (!art_it->first.starts_with(resource_prefix))
                 break;
 
             auto name_suffix = static_cast<std::u8string_view>(art_it->first);
-            name_suffix.remove_prefix(name_only.size());
+            name_suffix.remove_prefix(resource_prefix.size());
             if (auto art_type = classify_artwork(name_suffix); art_type)
             {
+                spdlog::debug("Detected item artwork type {}", EnumNameArtworkType(*art_type));
                 item_artwork.emplace_back(
                     CreateArtwork(fbb,
                                   CreateLibraryKey(fbb, store_resource(art_it->second)),
@@ -174,6 +175,7 @@ struct object_composer
         {
             if (auto [folder_artwork, art_type] = get_folder_artwork(); folder_artwork)
             {
+                spdlog::debug("No item artworkm Adding folder artwork");
                 item_artwork.emplace_back(
                     CreateArtwork(fbb,
                                   CreateLibraryKey(fbb, store_resource(folder_artwork->second)),
@@ -181,9 +183,9 @@ struct object_composer
             }
         }
 
-        for (auto subs_it = subtitles_.lower_bound(name_only); subs_it != subtitles_.end(); ++subs_it)
+        for (auto subs_it = subtitles_.lower_bound(resource_prefix); subs_it != subtitles_.end(); ++subs_it)
         {
-            if (!subs_it->first.starts_with(name_only))
+            if (!subs_it->first.starts_with(resource_prefix))
                 break;
 
             item_resources.emplace_back(
@@ -193,7 +195,7 @@ struct object_composer
         auto data_off = CreateMediaItem(fbb, fbb.CreateVector(item_resources));
         // NOTE: Normally partition is enough, but FB offers only this API 😥
         auto artwork_off = put_sorted_vector(fbb, std::move(item_artwork));
-        auto [title, year] = normalize_title(name_only);
+        auto [title, year] = normalize_title(folder_name.empty() ? resource_prefix : folder_name);
         auto dc_title = put_string(title, fbb);
         auto upnp_class = put_string_view(upnp_movie_class, fbb);
 
@@ -250,7 +252,7 @@ auto movie_scanner::scan_directory(fs::path const& path, movies_library_config c
     std::vector<fs::path> directories{};
 
     std::map<fs::path, file_info> videos;
-    object_composer composer{*this, path};
+    object_composer composer{*this};
 
     for (auto item : fs::directory_iterator{path})
     {
@@ -303,6 +305,8 @@ auto movie_scanner::scan_directory(fs::path const& path, movies_library_config c
         else
         {
             composer.parent_id = get_movies_folder_id();
+            if (config.use_folder_names)
+                composer.folder_name = path.stem().u8string();
         }
 
         store_.put_items(
