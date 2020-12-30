@@ -41,6 +41,8 @@ auto get_mime_type(fs::path const& path)
     static auto const EXTENSIONS = std::unordered_map<fs::path, std::u8string_view, hasher>{
         {fs::path{".mkv"}, u8"video/x-matroska"},
         {fs::path{".mp4"}, u8"video/mp4"},
+        {fs::path{".avi"}, u8"video/x-msvideo"},
+        {fs::path{".mpg"}, u8"video/mpeg"},
 
         {fs::path{".jpg"}, u8"image/jpeg"},
 
