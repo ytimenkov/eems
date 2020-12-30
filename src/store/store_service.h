@@ -13,6 +13,8 @@
 namespace eems
 {
 
+constexpr auto upnp_container_class{u8"object.container"};
+
 class store_service
 {
 public:

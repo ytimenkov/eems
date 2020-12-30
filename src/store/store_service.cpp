@@ -4,11 +4,10 @@
 #include "fb_converters.h"
 
 #include <leveldb/write_batch.h>
+#include <range/v3/action/push_back.hpp>
 #include <range/v3/algorithm/find.hpp>
 #include <range/v3/range/conversion.hpp>
-#include <range/v3/view/iota.hpp>
 #include <range/v3/view/transform.hpp>
-#include <range/v3/view/zip.hpp>
 #include <spdlog/spdlog.h>
 
 namespace eems
@@ -82,7 +81,7 @@ store_service::store_service(store_config const& config)
         container_data root_container{
             .id{0},
             .parent_id{-1},
-            .upnp_class{u8"object.container"}};
+            .upnp_class{upnp_container_class}};
         auto container_buf = serialize_container(root_container);
         status = db_->Put(leveldb::WriteOptions{},
                           serialize_key(ObjectKey{0}),
@@ -91,17 +90,6 @@ store_service::store_service(store_config const& config)
         {
             throw std::runtime_error("Failed to create root container");
         }
-    }
-    {
-        container_data video_container{
-            .id{1},
-            .parent_id{0},
-            .dc_title{u8"Video"},
-            .upnp_class{u8"object.container"}};
-        std::vector<flatbuffers::DetachedBuffer> contents;
-        contents.emplace_back(serialize_container(video_container));
-
-        put_items(video_container.parent_id, std::move(contents), {});
     }
 }
 
@@ -138,6 +126,7 @@ inline auto store_service::get_next_id() const -> int64_t
 }
 
 template auto store_service::get_next_id<ResourceKey>() const -> int64_t;
+template auto store_service::get_next_id<ObjectKey>() const -> int64_t;
 
 inline auto store_service::create_iterator() const -> std::unique_ptr<::leveldb::Iterator>
 {
@@ -162,13 +151,15 @@ auto store_service::put_items(ObjectKey parent,
             leveldb::Slice{reinterpret_cast<char const*>(res_buf.data()), res_buf.size()});
     }
 
-    for (auto&& [item_buf, item_id] : views::zip(items, views::iota(get_next_id<ObjectKey>())))
+    for (auto&& item_buf : items)
     {
-        auto item = flatbuffers::GetMutableRoot<MediaObject>(item_buf.data());
-        item->mutable_id()->mutate_id(item_id);
+        auto item = flatbuffers::GetRoot<MediaObject>(item_buf.data());
+        spdlog::debug("Adding new item with key: {}", item->id()->id());
+        // TODO: parent id parameter is not needed
+        if (item->parent_id()->id() != parent.id())
+            throw std::logic_error("Parent mismatch");
 
-        spdlog::debug("Adding new item with key: {}", item_id);
-        auto key = serialize_key(ObjectKey{item_id});
+        auto key = serialize_key(*item->id());
         batch.Put(
             key,
             leveldb::Slice{reinterpret_cast<char const*>(item_buf.data()), item_buf.size()});
@@ -262,13 +253,14 @@ auto store_service::deserialize_container(std::string const& key, ::leveldb::Ite
         .parent_id{*media_object->parent_id()},
         .dc_title{std::u8string{as_string_view<char8_t>(*media_object->dc_title())}},
         .upnp_class{std::u8string{as_string_view<char8_t>(*media_object->upnp_class())}},
-        .objects{*container->objects() |
-                 views::transform([](MediaObjectRef const* ref) {
-                     return std::string{reinterpret_cast<char const*>(ref->ref()->data()), ref->ref()->size()};
-                 }) |
-                 ranges::to<std::vector>()},
     };
-
+    if (auto objects = container->objects(); objects)
+    {
+        ranges::push_back(result.objects,
+                          views::transform(*objects, [](MediaObjectRef const* ref) {
+                              return std::string{reinterpret_cast<char const*>(ref->ref()->data()), ref->ref()->size()};
+                          }));
+    }
     return result;
 }
 

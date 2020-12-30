@@ -10,6 +10,7 @@
 #include <fmt/ostream.h>
 #include <map>
 #include <range/v3/action/push_back.hpp>
+#include <range/v3/algorithm/find_if.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/transform.hpp>
 #include <regex>
@@ -18,6 +19,9 @@
 
 namespace eems
 {
+
+constexpr std::u8string_view movies_folder_name{u8"Movies"};
+constexpr std::u8string_view upnp_movie_class{u8"object.item.videoItem.movie"};
 
 namespace
 {
@@ -64,14 +68,6 @@ inline auto is_text_type(std::u8string_view mime_type)
     return mime_type.starts_with(u8"text/");
 }
 
-auto get_upnp_class(std::u8string_view mime_type) -> std::u8string_view
-{
-    if (is_video_type(mime_type))
-        return u8"object.item.videoItem";
-    else
-        return u8"object.item";
-}
-
 auto normalize_title(std::u8string title) -> std::tuple<std::string, int>
 {
     // TODO: This is a bit messy because std::regex doesn't support unicode.
@@ -91,8 +87,6 @@ auto normalize_title(std::u8string title) -> std::tuple<std::string, int>
     return {std::move(ntitle), year};
 }
 
-constexpr std::u8string_view upnp_movie_class{u8"object.item.videoItem.movie"};
-
 struct file_info
 {
     std::u8string_view mime_type;
@@ -111,7 +105,7 @@ inline auto classify_artwork(std::u8string_view name)
 
 struct object_composer
 {
-    int64_t& resource_id;
+    movie_scanner& context;
     fs::path const& base_path;
 
     std::vector<std::tuple<ResourceKey, flatbuffers::DetachedBuffer>> resources;
@@ -205,13 +199,12 @@ struct object_composer
                                            .time_since_epoch()
                                            .count());
         }
-        // Add keys to be updated later.
         {
-            auto item_id = ObjectKey{};
+            auto item_id = context.next_object_key();
             object_builder.add_id(&item_id);
         }
         {
-            auto parent_id = ObjectKey{};
+            auto parent_id = context.get_movies_folder_id();
             object_builder.add_parent_id(&parent_id);
         }
         object_builder.add_data_type(ObjectUnion::MediaItem);
@@ -241,21 +234,21 @@ struct object_composer
         resource_builder.add_location(location);
         resource_builder.add_mime_type(mime);
         resource_fbb.Finish(resource_builder.Finish());
-        auto resource_key = ResourceKey{resource_id++};
+        auto resource_key = context.next_resource_key();
         spdlog::debug("Assigning resource key: {} to {}", resource_key.id(), name);
         resources.emplace_back(resource_key, resource_fbb.Release());
         return serialize_key(resource_key);
     }
 };
 
-auto movie_scanner::scan_directory(fs::path const& path, int64_t& resource_id)
+auto movie_scanner::scan_directory(fs::path const& path)
     -> movie_scanner::scan_result
 {
     spdlog::debug("Scanning: {}", path);
 
     scan_result result;
     std::map<fs::path, file_info> videos;
-    object_composer composer{resource_id, path};
+    object_composer composer{*this, path};
 
     for (auto item : fs::directory_iterator{path})
     {
@@ -304,14 +297,85 @@ auto movie_scanner::scan_directory(fs::path const& path, int64_t& resource_id)
 auto movie_scanner::scan_all(fs::path const& root, movies_library_config const& config) -> void
 {
     auto directories = std::vector<fs::path>{root};
-    auto resource_id = store_.get_next_id<ResourceKey>();
+    next_resource_id_ = store_.get_next_id<ResourceKey>();
+    next_object_id_ = store_.get_next_id<ObjectKey>();
     while (!directories.empty())
     {
-        auto scan_result = scan_directory(directories.back(), resource_id);
-        store_.put_items({1}, std::move(scan_result.items), std::move(scan_result.resources));
+        auto scan_result = scan_directory(directories.back());
+        store_.put_items(get_movies_folder_id(), std::move(scan_result.items), std::move(scan_result.resources));
         directories.pop_back();
         ranges::push_back(directories, scan_result.directories);
     }
+}
+
+auto movie_scanner::get_movies_folder_id() -> ObjectKey
+{
+    if (movies_folder_.id() > 0)
+        return movies_folder_;
+
+    ObjectKey const root_key{};
+
+#if !(__INTELLISENSE__ == 1)
+    {
+        auto root_container_view = store_.list(root_key);
+        if (auto it = ranges::find_if(root_container_view, [](MediaObject const& item) {
+                return as_string_view<char8_t>(*item.dc_title()) == movies_folder_name;
+            });
+            it != ranges::end(root_container_view))
+        {
+            return movies_folder_ = *it->id();
+        }
+    }
+#endif
+
+    flatbuffers::FlatBufferBuilder fbb{};
+
+    auto const new_key = next_object_key();
+
+    auto title_off = put_string_view(movies_folder_name, fbb);
+    auto class_off = put_string_view<char8_t>(upnp_container_class, fbb);
+    auto container_off = CreateMediaContainer(fbb);
+
+    MediaObjectBuilder builder{fbb};
+    builder.add_id(&new_key);
+    builder.add_parent_id(&root_key);
+    builder.add_dc_title(title_off);
+    builder.add_upnp_class(class_off);
+    builder.add_data_type(ObjectUnion::MediaContainer);
+    builder.add_data(container_off.Union());
+
+    fbb.Finish(builder.Finish());
+    std::vector<flatbuffers::DetachedBuffer> items;
+    items.emplace_back(fbb.Release());
+    store_.put_items(root_key, std::move(items), {});
+
+    return movies_folder_ = new_key;
+}
+
+auto movie_scanner::create_container(std::u8string_view name) -> std::string
+{
+    return {};
+    // {
+    //     container_data video_container{
+    //         .id{1},
+    //         .parent_id{0},
+    //         .dc_title{u8"Video"},
+    //         .upnp_class{u8"object.container"}};
+    //     std::vector<flatbuffers::DetachedBuffer> contents;
+    //     contents.emplace_back(serialize_container(video_container));
+
+    //     put_items(video_container.parent_id, std::move(contents), {});
+    // }
+}
+
+inline auto movie_scanner::next_resource_key() -> ResourceKey
+{
+    return next_resource_id_++;
+}
+
+inline auto movie_scanner::next_object_key() -> ObjectKey
+{
+    return next_object_id_++;
 }
 
 }
