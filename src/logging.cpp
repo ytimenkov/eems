@@ -6,22 +6,28 @@
 
 namespace eems
 {
-std::shared_ptr<spdlog::logger> intialize_logging(std::string const& file_name)
+std::shared_ptr<spdlog::logger> intialize_logging(logging_config const& config)
 {
     auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
     console_sink->set_level(spdlog::level::info);
     console_sink->set_pattern("%Y-%m-%d %X %^%6l%$: %v");
 
-    // Make this configurable
-    constexpr bool truncate_file = true;
-    auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(file_name, truncate_file);
-    file_sink->set_level(spdlog::level::debug);
-    file_sink->set_pattern("%Y-%m-%d %X %6l: [%s:%#] %!(): %v");
+    std::vector<spdlog::sink_ptr> sinks;
+    sinks.emplace_back(std::move(console_sink));
 
-    std::initializer_list<spdlog::sink_ptr> sinks = {console_sink, file_sink};
-    auto new_logger = std::make_shared<spdlog::logger>("basic_logger", sinks);
-    new_logger->flush_on(spdlog::level::debug);
-    new_logger->set_level(spdlog::level::debug);
+    spdlog::level::level_enum level{spdlog::level::info};
+
+    if (!config.path.empty())
+    {
+        auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(config.path.native(), config.truncate);
+        file_sink->set_level(spdlog::level::debug);
+        file_sink->set_pattern("%Y-%m-%d %X %6l: [%s:%#] %!(): %v");
+        sinks.emplace_back(std::move(file_sink));
+        level = spdlog::level::debug;
+    }
+    auto new_logger = std::make_shared<spdlog::logger>("basic_logger", std::begin(sinks), std::end(sinks));
+    new_logger->flush_on(level);
+    new_logger->set_level(level);
     return new_logger;
 }
 }

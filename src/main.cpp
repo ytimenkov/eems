@@ -15,8 +15,8 @@
 int main(int argc, char const* argv[])
 {
     auto config = eems::load_configuration(argc, argv);
-    // TODO: Configure log file name
-    spdlog::set_default_logger(std::move(eems::intialize_logging("eems.log")));
+
+    spdlog::set_default_logger(std::move(eems::intialize_logging(config.logging)));
 
     eems::store_service store_service{};
     eems::upnp_service upnp_service{store_service, config.server};

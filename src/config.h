@@ -2,16 +2,19 @@
 #define EEMS_CONFIG_H
 
 #include "data_config.h"
+#include "logging_config.h"
 #include "server_config.h"
 #include "store_config.h"
 
 namespace eems
 {
+
 struct config
 {
     data_config data;
     store_config db;
     server_config server;
+    logging_config logging;
 };
 
 auto load_configuration(int argc, char const* argv[])

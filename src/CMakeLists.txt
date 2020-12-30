@@ -17,6 +17,7 @@ target_sources(eems PRIVATE
     http_messages.cpp
     http_messages.h
     http_serialize.h
+    logging_config.h
     logging.cpp
     logging.h
     main.cpp

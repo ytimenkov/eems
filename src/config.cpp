@@ -90,6 +90,17 @@ auto load_server_config(toml_table const& data, server_config& config)
     });
 }
 
+auto load_logging_config(toml_table const& data, logging_config& config)
+    -> void
+{
+    try_get<std::string>(data, "path"s, [&](auto& val) {
+        config.path = val;
+    });
+    try_get<bool>(data, "truncate"s, [&](auto& val) {
+        config.truncate = val;
+    });
+}
+
 auto load_configuration(int argc, char const* argv[])
     -> config
 {
@@ -115,6 +126,10 @@ auto load_configuration(int argc, char const* argv[])
 
     try_get<toml_table>(data_table, "server"s, [&config = result.server](auto& data) {
         load_server_config(data, config);
+    });
+
+    try_get<toml_table>(data_table, "logging"s, [&config = result.logging](auto& data) {
+        load_logging_config(data, config);
     });
 
     // Now we bind to 0.0.0.0 and this must know own remote name or ip address.

@@ -1,0 +1,13 @@
+[Unit]
+Description=EEMS Media Server
+After=network.target
+
+[Service]
+Type=exec
+User=eems
+Group=eems
+ExecStart=/usr/local/bin/eems --config /etc/eems.conf
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
