@@ -103,16 +103,19 @@ private:
 
     auto create_iterator() const -> std::unique_ptr<::leveldb::Iterator>;
 
-    struct container_data
+    struct container_meta
     {
         ObjectKey id;
         ObjectKey parent_id;
         std::u8string dc_title;
         std::u8string upnp_class;
-        std::vector<std::string> objects; // Underlying type is the result of serialize_key
+        std::vector<std::tuple<std::string, ArtworkType>> artwork;
     };
-    auto deserialize_container(std::string const& key, ::leveldb::Iterator& iter) -> container_data;
-    auto serialize_container(container_data const& data) -> flatbuffers::DetachedBuffer;
+    auto deserialize_container(std::string const& key, ::leveldb::Iterator& iter, bool meta)
+        -> std::tuple<std::vector<std::string>, std::unique_ptr<container_meta>>;
+
+    auto serialize_container(std::vector<std::string> const& contents, container_meta const& meta)
+        -> flatbuffers::DetachedBuffer;
 
 private:
     fb_comparator comparator_;

@@ -7,6 +7,13 @@
 
 namespace eems
 {
+
+struct file_info
+{
+    std::u8string_view mime_type;
+    fs::path path;
+};
+
 class movie_scanner
 {
 public:
@@ -15,19 +22,19 @@ public:
     {
     }
 
-    auto scan_all(fs::path const& root, movies_library_config const& config) -> void;
+    auto scan_all(fs::path const& root, movies_library_config const& config)
+        -> void;
 
 private:
-    struct scan_result
-    {
-        std::vector<flatbuffers::DetachedBuffer> items;
-        std::vector<std::tuple<ResourceKey, flatbuffers::DetachedBuffer>> resources;
-        std::vector<fs::path> directories;
-    };
+    auto scan_directory(fs::path const& path, movies_library_config const& config)
+        -> std::vector<fs::path>;
 
-    auto scan_directory(fs::path const& path) -> movie_scanner::scan_result;
+    auto create_container(std::u8string_view name,
+                          std::tuple<file_info const*, ArtworkType> artwork)
+        -> ObjectKey;
 
-    auto create_container(std::u8string_view name) -> std::string;
+    auto serialize_resource(file_info const& info)
+        -> std::tuple<ResourceKey, flatbuffers::DetachedBuffer>;
 
     auto get_movies_folder_id() -> ObjectKey;
 

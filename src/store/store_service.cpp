@@ -78,11 +78,11 @@ store_service::store_service(store_config const& config)
     }
 
     {
-        container_data root_container{
+        container_meta root_container{
             .id{0},
             .parent_id{-1},
             .upnp_class{upnp_container_class}};
-        auto container_buf = serialize_container(root_container);
+        auto container_buf = serialize_container({}, root_container);
         status = db_->Put(leveldb::WriteOptions{},
                           serialize_key(ObjectKey{0}),
                           leveldb::Slice{reinterpret_cast<char const*>(container_buf.data()), container_buf.size()});
@@ -136,10 +136,11 @@ inline auto store_service::create_iterator() const -> std::unique_ptr<::leveldb:
 #if !(__INTELLISENSE__ == 1)
 auto store_service::put_items(ObjectKey parent,
                               std::vector<flatbuffers::DetachedBuffer>&& items,
-                              std::vector<std::tuple<ResourceKey, flatbuffers::DetachedBuffer>>&& resources) -> void
+                              std::vector<std::tuple<ResourceKey, flatbuffers::DetachedBuffer>>&& resources)
+    -> void
 {
     auto const parent_key = serialize_key(parent);
-    auto container_data = deserialize_container(parent_key, *create_iterator());
+    auto [container_data, container_meta] = deserialize_container(parent_key, *create_iterator(), true);
 
     // Process resources first because items' references to resources need to be updated.
     leveldb::WriteBatch batch{};
@@ -164,10 +165,10 @@ auto store_service::put_items(ObjectKey parent,
             key,
             leveldb::Slice{reinterpret_cast<char const*>(item_buf.data()), item_buf.size()});
 
-        container_data.objects.emplace_back(std::move(key));
+        container_data.emplace_back(std::move(key));
     }
 
-    auto container_buf = serialize_container(container_data);
+    auto container_buf = serialize_container(container_data, *container_meta);
     batch.Put(parent_key,
               leveldb::Slice{reinterpret_cast<char const*>(container_buf.data()), container_buf.size()});
 
@@ -190,7 +191,8 @@ auto store_service::put_items(ObjectKey parent,
 }
 #endif
 
-auto store_service::list_result_view::cursor::read() const -> MediaObject const&
+auto store_service::list_result_view::cursor::read() const
+    -> MediaObject const&
 {
     db_it_->Seek(*key_it_);
     if (!db_it_->Valid() || db_it_->key() != *key_it_)
@@ -201,22 +203,25 @@ auto store_service::list_result_view::cursor::read() const -> MediaObject const&
     return *flatbuffers::GetRoot<MediaObject>(db_it_->value().data());
 }
 
-auto store_service::list(ObjectKey id) -> store_service::list_result_view
+auto store_service::list(ObjectKey id)
+    -> store_service::list_result_view
 {
     auto it = create_iterator();
-    auto container_data = deserialize_container(serialize_key(id), *it);
+    auto [objects, meta] = deserialize_container(serialize_key(id), *it, false);
 
     // static_assert(ranges::random_access_iterator<decltype(ranges::begin(std::declval<list_result_view>()))>);
 
-    return list_result_view{std::move(it), std::move(container_data.objects)};
+    return list_result_view{std::move(it), std::move(objects)};
 }
 
-auto store_service::get(ObjectKey id) -> store_service::list_result_view
+auto store_service::get(ObjectKey id)
+    -> store_service::list_result_view
 {
     return list_result_view{create_iterator(), {serialize_key(id)}};
 }
 
-auto store_service::get_resource(ResourceKey id) -> resource_result
+auto store_service::get_resource(ResourceKey id)
+    -> resource_result
 {
     resource_result result{nullptr, create_iterator()};
     auto key_s = serialize_key(id);
@@ -234,7 +239,8 @@ auto store_service::get_resource(ResourceKey id) -> resource_result
 }
 
 #if !(__INTELLISENSE__ == 1)
-auto store_service::deserialize_container(std::string const& key, ::leveldb::Iterator& iter) -> container_data
+auto store_service::deserialize_container(std::string const& key, ::leveldb::Iterator& iter, bool include_meta)
+    -> std::tuple<std::vector<std::string>, std::unique_ptr<container_meta>>
 {
     iter.Seek(key);
     if (!iter.Valid() || iter.key() != key)
@@ -248,43 +254,70 @@ auto store_service::deserialize_container(std::string const& key, ::leveldb::Ite
     }
     auto container = static_cast<MediaContainer const*>(media_object->data());
 
-    container_data result{
-        .id{*media_object->id()},
-        .parent_id{*media_object->parent_id()},
-        .dc_title{std::u8string{as_string_view<char8_t>(*media_object->dc_title())}},
-        .upnp_class{std::u8string{as_string_view<char8_t>(*media_object->upnp_class())}},
-    };
+    std::unique_ptr<container_meta> meta{};
+
+    if (include_meta)
+    {
+        meta = std::make_unique<container_meta>();
+
+        meta->id = *media_object->id();
+        meta->parent_id = *media_object->parent_id();
+        meta->dc_title = as_string_view<char8_t>(*media_object->dc_title());
+        meta->upnp_class = as_string_view<char8_t>(*media_object->upnp_class());
+
+        if (auto artwork = media_object->artwork(); artwork)
+        {
+            ranges::push_back(meta->artwork,
+                              views::transform(*artwork, [](Artwork const* item) {
+                                  return std::tuple{as_library_key(*item->ref()), item->type()};
+                              }));
+        }
+    }
+
+    std::vector<std::string> container_data;
     if (auto objects = container->objects(); objects)
     {
-        ranges::push_back(result.objects,
+        ranges::push_back(container_data,
                           views::transform(*objects, [](MediaObjectRef const* ref) {
-                              return std::string{reinterpret_cast<char const*>(ref->ref()->data()), ref->ref()->size()};
+                              return as_library_key(*ref->ref());
                           }));
     }
-    return result;
+    return {std::move(container_data), std::move(meta)};
 }
 
-auto store_service::serialize_container(container_data const& data) -> flatbuffers::DetachedBuffer
+auto store_service::serialize_container(std::vector<std::string> const& contents, container_meta const& meta)
+    -> flatbuffers::DetachedBuffer
 {
     flatbuffers::FlatBufferBuilder fbb{};
 
     auto container_off = CreateMediaContainer(
         fbb,
         fbb.CreateVector(
-            data.objects |
-            views::transform([&fbb](auto const& buf) {
-                return CreateMediaObjectRef(fbb, put_key(buf, fbb));
+            contents |
+            views::transform([&fbb](auto const& key_buf) {
+                return CreateMediaObjectRef(fbb, CreateLibraryKey(fbb, key_buf));
             }) |
             ranges::to<std::vector>()));
 
-    auto title_off = put_string(data.dc_title, fbb);
-    auto class_off = put_string(data.upnp_class, fbb);
+    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<Artwork>>> artwork_off{};
+    if (!meta.artwork.empty())
+    {
+        artwork_off = fbb.CreateVector(
+            meta.artwork | views::transform([&fbb](auto const& tup) {
+                return CreateArtwork(fbb, CreateLibraryKey(fbb, std::get<0>(tup)), std::get<1>(tup));
+            }) |
+            ranges::to<std::vector>());
+    }
+
+    auto title_off = put_string(meta.dc_title, fbb);
+    auto class_off = put_string(meta.upnp_class, fbb);
 
     MediaObjectBuilder builder{fbb};
-    builder.add_id(&data.id);
-    builder.add_parent_id(&data.parent_id);
+    builder.add_id(&meta.id);
+    builder.add_parent_id(&meta.parent_id);
     builder.add_dc_title(title_off);
     builder.add_upnp_class(class_off);
+    builder.add_artwork(artwork_off);
     builder.add_data_type(ObjectUnion::MediaContainer);
     builder.add_data(container_off.Union());
 

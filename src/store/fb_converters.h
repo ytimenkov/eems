@@ -57,10 +57,15 @@ inline auto loggable_u8_view(std::u8string_view u8_view) -> std::string_view
     return std::string_view{reinterpret_cast<char const*>(u8_view.data()), u8_view.size()};
 }
 
-inline auto put_key(std::string const& key, flatbuffers::FlatBufferBuilder& fbb)
+inline auto CreateLibraryKey(flatbuffers::FlatBufferBuilder& fbb, std::string const& key)
 {
     // Don't use put_string here because raw key is serialized
     return fbb.CreateVector(reinterpret_cast<uint8_t const*>(key.data()), key.size());
+}
+
+inline auto as_library_key(flatbuffers::Vector<uint8_t> const& raw) -> std::string
+{
+    return std::string{reinterpret_cast<char const*>(raw.data()), raw.size()};
 }
 
 template <typename T>
@@ -74,7 +79,7 @@ inline auto put_vector(flatbuffers::FlatBufferBuilder& fbb, std::vector<flatbuff
 }
 
 template <typename T>
-inline auto put_sorted_vector(flatbuffers::FlatBufferBuilder& fbb, std::vector<flatbuffers::Offset<T>> && src)
+inline auto put_sorted_vector(flatbuffers::FlatBufferBuilder& fbb, std::vector<flatbuffers::Offset<T>>&& src)
     -> flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<T>>>
 {
     if (src.empty())
@@ -82,7 +87,6 @@ inline auto put_sorted_vector(flatbuffers::FlatBufferBuilder& fbb, std::vector<f
     else
         return fbb.CreateVectorOfSortedTables(&src);
 }
-
 
 }
 

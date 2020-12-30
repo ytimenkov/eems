@@ -8,10 +8,11 @@
 
 namespace eems
 {
-    
+
 struct movies_library_config
 {
     bool use_folder_names{true};
+    bool use_collections{true};
 };
 
 struct directory_config

@@ -87,11 +87,6 @@ auto normalize_title(std::u8string title) -> std::tuple<std::string, int>
     return {std::move(ntitle), year};
 }
 
-struct file_info
-{
-    std::u8string_view mime_type;
-};
-
 inline auto classify_artwork(std::u8string_view name)
     -> std::optional<ArtworkType>
 {
@@ -103,6 +98,18 @@ inline auto classify_artwork(std::u8string_view name)
     return std::nullopt;
 }
 
+inline auto CreateResourceRef(flatbuffers::FlatBufferBuilder& fbb,
+                              std::string const& key, file_info const& info)
+    -> flatbuffers::Offset<ResourceRef>
+{
+    auto key_off = CreateLibraryKey(fbb, key);
+    auto protocol_info = put_string(fmt::format(u8"http-get:*:{}:*", info.mime_type), fbb);
+    ResourceRefBuilder ref_builder{fbb};
+    ref_builder.add_ref(key_off);
+    ref_builder.add_protocol_info(protocol_info);
+    return ref_builder.Finish();
+}
+
 struct object_composer
 {
     movie_scanner& context;
@@ -111,21 +118,22 @@ struct object_composer
     std::vector<std::tuple<ResourceKey, flatbuffers::DetachedBuffer>> resources;
     std::map<std::u8string, file_info, std::less<>> subtitles_;
     std::map<std::u8string, file_info, std::less<>> artwork_;
+    ObjectKey parent_id;
 
-    auto artwork(std::u8string&& name, std::u8string_view mime_type)
+    auto artwork(fs::path const& path, std::u8string_view mime_type)
         -> void
     {
         artwork_.emplace(std::piecewise_construct,
-                         std::forward_as_tuple(std::move(name)),
-                         std::forward_as_tuple(mime_type));
+                         std::forward_as_tuple(path.filename().generic_u8string()),
+                         std::forward_as_tuple(mime_type, path));
     }
 
-    auto subtitles(std::u8string&& name, std::u8string_view mime_type)
+    auto subtitles(fs::path const& path, std::u8string_view mime_type)
         -> void
     {
         subtitles_.emplace(std::piecewise_construct,
-                           std::forward_as_tuple(std::move(name)),
-                           std::forward_as_tuple(mime_type));
+                           std::forward_as_tuple(path.filename().generic_u8string()),
+                           std::forward_as_tuple(mime_type, path));
     }
 
     auto operator()(std::pair<fs::path, file_info> const& p)
@@ -138,8 +146,9 @@ struct object_composer
         flatbuffers::FlatBufferBuilder fbb{};
 
         // Main resource.
-        item_resources.emplace_back(add_resource(
-            store_resource(name, info), info, fbb));
+        item_resources.emplace_back(
+            CreateResourceRef(fbb,
+                              store_resource(info), info));
 
         flatbuffers::Offset<MediaObjectRef> album_art{};
 
@@ -156,20 +165,19 @@ struct object_composer
             {
                 item_artwork.emplace_back(
                     CreateArtwork(fbb,
-                                  put_key(store_resource(art_it->first, art_it->second),
-                                          fbb),
+                                  CreateLibraryKey(fbb, store_resource(art_it->second)),
                                   *art_type));
             }
         }
-        if (auto folder_jpg_it = artwork_.find(u8"folder.jpg"); folder_jpg_it != artwork_.end())
+        if (item_artwork.empty())
         {
-            item_artwork.emplace_back(
-                CreateArtwork(fbb,
-                              put_key(store_resource(
-                                          folder_jpg_it->first,
-                                          folder_jpg_it->second),
-                                      fbb),
-                              ArtworkType::Thumbnail));
+            if (auto [folder_artwork, art_type] = get_folder_artwork(); folder_artwork)
+            {
+                item_artwork.emplace_back(
+                    CreateArtwork(fbb,
+                                  CreateLibraryKey(fbb, store_resource(folder_artwork->second)),
+                                  art_type));
+            }
         }
 
         for (auto subs_it = subtitles_.lower_bound(name_only); subs_it != subtitles_.end(); ++subs_it)
@@ -177,8 +185,9 @@ struct object_composer
             if (!subs_it->first.starts_with(name_only))
                 break;
 
-            item_resources.emplace_back(add_resource(
-                store_resource(subs_it->first, subs_it->second), subs_it->second, fbb));
+            item_resources.emplace_back(
+                CreateResourceRef(fbb,
+                                  store_resource(subs_it->second), subs_it->second));
         }
 
         auto data_off = CreateMediaItem(fbb, fbb.CreateVector(item_resources));
@@ -203,50 +212,45 @@ struct object_composer
             auto item_id = context.next_object_key();
             object_builder.add_id(&item_id);
         }
-        {
-            auto parent_id = context.get_movies_folder_id();
-            object_builder.add_parent_id(&parent_id);
-        }
+        object_builder.add_parent_id(&parent_id);
         object_builder.add_data_type(ObjectUnion::MediaItem);
         object_builder.add_data(data_off.Union());
         fbb.Finish(object_builder.Finish());
         return fbb.Release();
     }
 
-    auto add_resource(std::string const& key, file_info const& info,
-                      flatbuffers::FlatBufferBuilder& fbb) -> flatbuffers::Offset<ResourceRef>
+    auto store_resource(file_info const& info) -> std::string
     {
-        auto key_off = fbb.CreateVector(reinterpret_cast<uint8_t const*>(key.data()), key.length());
-        auto protocol_info = put_string(fmt::format(u8"http-get:*:{}:*", info.mime_type), fbb);
-        ResourceRefBuilder ref_builder{fbb};
-        ref_builder.add_ref(key_off);
-        ref_builder.add_protocol_info(protocol_info);
-        return ref_builder.Finish();
+        auto res = context.serialize_resource(info);
+        auto serialized_key = serialize_key(std::get<ResourceKey>(res));
+        resources.emplace_back(std::move(res));
+        return serialized_key;
     }
 
-    auto store_resource(fs::path const& name, file_info const& info) -> std::string
+    auto get_folder_artwork() -> std::pair<std::pair<std::u8string const, file_info> const*, ArtworkType>
     {
-        flatbuffers::FlatBufferBuilder resource_fbb{};
-        auto location = put_string((base_path / name).native(), resource_fbb);
-        auto mime = put_string_view(info.mime_type, resource_fbb);
-
-        ResourceBuilder resource_builder{resource_fbb};
-        resource_builder.add_location(location);
-        resource_builder.add_mime_type(mime);
-        resource_fbb.Finish(resource_builder.Finish());
-        auto resource_key = context.next_resource_key();
-        spdlog::debug("Assigning resource key: {} to {}", resource_key.id(), name);
-        resources.emplace_back(resource_key, resource_fbb.Release());
-        return serialize_key(resource_key);
+        for (auto& [candidate, type] :
+             {
+                 std::pair{u8"poster.jpg", ArtworkType::Poster},
+                 std::pair{u8"folder.jpg", ArtworkType::Thumbnail},
+             })
+        {
+            if (auto it = artwork_.find(candidate); it != artwork_.end())
+            {
+                return {std::to_address(it), type};
+            }
+        }
+        return {nullptr, ArtworkType::Thumbnail};
     }
 };
 
-auto movie_scanner::scan_directory(fs::path const& path)
-    -> movie_scanner::scan_result
+auto movie_scanner::scan_directory(fs::path const& path, movies_library_config const& config)
+    -> std::vector<fs::path>
 {
     spdlog::debug("Scanning: {}", path);
 
-    scan_result result;
+    std::vector<fs::path> directories{};
+
     std::map<fs::path, file_info> videos;
     object_composer composer{*this, path};
 
@@ -254,7 +258,7 @@ auto movie_scanner::scan_directory(fs::path const& path)
     {
         if (item.is_directory())
         {
-            result.directories.emplace_back(item);
+            directories.emplace_back(item);
             continue;
         }
         else if (!item.is_regular_file())
@@ -268,17 +272,19 @@ auto movie_scanner::scan_directory(fs::path const& path)
 
         if (is_video_type(*mime_type))
         {
+            auto path = item.path();
+            auto file_name = path.filename();
             videos.emplace(std::piecewise_construct,
-                           std::forward_as_tuple(item.path().filename()),
-                           std::forward_as_tuple(*mime_type));
+                           std::forward_as_tuple(std::move(file_name)),
+                           std::forward_as_tuple(*mime_type, std::move(path)));
         }
         else if (is_image_type(*mime_type))
         {
-            composer.artwork(item.path().filename().generic_u8string(), *mime_type);
+            composer.artwork(item.path(), *mime_type);
         }
         else if (is_text_type(*mime_type))
         {
-            composer.subtitles(item.path().filename().generic_u8string(), *mime_type);
+            composer.subtitles(item.path(), *mime_type);
         }
         else
         {
@@ -287,11 +293,28 @@ auto movie_scanner::scan_directory(fs::path const& path)
     }
 
 #if !(__INTELLISENSE__ == 1)
-    result.items = views::transform(videos, std::ref(composer)) | ranges::to<std::vector>();
-#endif
-    result.resources = std::move(composer.resources);
+    if (auto movies_count = videos.size(); movies_count > 0)
+    {
+        if (movies_count > 1 && config.use_collections)
+        {
+            auto const artwork = composer.get_folder_artwork();
+            composer.parent_id = create_container(
+                path.stem().generic_u8string(),
+                {artwork.first ? &artwork.first->second : nullptr, artwork.second});
+        }
+        else
+        {
+            composer.parent_id = get_movies_folder_id();
+        }
 
-    return result;
+        store_.put_items(
+            composer.parent_id,
+            views::transform(videos, std::ref(composer)) | ranges::to<std::vector>(),
+            std::move(std::move(composer.resources)));
+    }
+#endif
+
+    return directories;
 }
 
 auto movie_scanner::scan_all(fs::path const& root, movies_library_config const& config) -> void
@@ -301,10 +324,9 @@ auto movie_scanner::scan_all(fs::path const& root, movies_library_config const& 
     next_object_id_ = store_.get_next_id<ObjectKey>();
     while (!directories.empty())
     {
-        auto scan_result = scan_directory(directories.back());
-        store_.put_items(get_movies_folder_id(), std::move(scan_result.items), std::move(scan_result.resources));
+        auto new_directories = scan_directory(directories.back(), config);
         directories.pop_back();
-        ranges::push_back(directories, scan_result.directories);
+        ranges::push_back(directories, new_directories);
     }
 }
 
@@ -352,20 +374,64 @@ auto movie_scanner::get_movies_folder_id() -> ObjectKey
     return movies_folder_ = new_key;
 }
 
-auto movie_scanner::create_container(std::u8string_view name) -> std::string
+auto movie_scanner::create_container(std::u8string_view name,
+                                     std::tuple<file_info const*, ArtworkType> artwork)
+    -> ObjectKey
 {
-    return {};
-    // {
-    //     container_data video_container{
-    //         .id{1},
-    //         .parent_id{0},
-    //         .dc_title{u8"Video"},
-    //         .upnp_class{u8"object.container"}};
-    //     std::vector<flatbuffers::DetachedBuffer> contents;
-    //     contents.emplace_back(serialize_container(video_container));
+    flatbuffers::FlatBufferBuilder fbb{};
 
-    //     put_items(video_container.parent_id, std::move(contents), {});
-    // }
+    std::vector<flatbuffers::Offset<Artwork>> folder_artwork;
+    std::vector<std::tuple<ResourceKey, flatbuffers::DetachedBuffer>> resources;
+    std::vector<flatbuffers::DetachedBuffer> items;
+
+    if (auto [info, art_type] = artwork; info)
+    {
+        auto res = serialize_resource(*info);
+        auto serialized_key = serialize_key(std::get<ResourceKey>(res));
+        resources.emplace_back(std::move(res));
+
+        folder_artwork.emplace_back(
+            CreateArtwork(fbb, CreateLibraryKey(fbb, serialized_key), art_type));
+    }
+
+    auto const parent_key = get_movies_folder_id();
+    auto const new_key = next_object_key();
+
+    auto title_off = put_string_view(name, fbb);
+    auto class_off = put_string_view<char8_t>(upnp_container_class, fbb);
+    auto container_off = CreateMediaContainer(fbb);
+    auto artwork_off = put_sorted_vector(fbb, std::move(folder_artwork));
+
+    MediaObjectBuilder builder{fbb};
+    builder.add_id(&new_key);
+    builder.add_parent_id(&parent_key);
+    builder.add_dc_title(title_off);
+    builder.add_upnp_class(class_off);
+    builder.add_artwork(artwork_off);
+    builder.add_data_type(ObjectUnion::MediaContainer);
+    builder.add_data(container_off.Union());
+
+    fbb.Finish(builder.Finish());
+    items.emplace_back(fbb.Release());
+    store_.put_items(parent_key, std::move(items), std::move(resources));
+
+    return new_key;
+}
+
+auto movie_scanner::serialize_resource(file_info const& info)
+    -> std::tuple<ResourceKey, flatbuffers::DetachedBuffer>
+{
+    flatbuffers::FlatBufferBuilder resource_fbb{};
+    auto const location = put_string(info.path.native(), resource_fbb);
+    auto const mime = put_string_view(info.mime_type, resource_fbb);
+
+    ResourceBuilder resource_builder{resource_fbb};
+    resource_builder.add_location(location);
+    resource_builder.add_mime_type(mime);
+    resource_fbb.Finish(resource_builder.Finish());
+    auto const resource_key = next_resource_key();
+    spdlog::debug("Assigning resource key: {} to {}", resource_key.id(), info.path);
+    return {resource_key, resource_fbb.Release()};
 }
 
 inline auto movie_scanner::next_resource_key() -> ResourceKey
