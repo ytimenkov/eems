@@ -297,7 +297,16 @@ auto movie_scanner::scan_directory(fs::path const& path, movies_library_config c
     {
         auto const artwork = composer.get_folder_artwork();
 
-        if ((artwork.first && !directories.empty()) || (videos.size() > 1))
+        const auto add_collection = [&]() mutable -> bool {
+            auto const movies_count = videos.size();
+            if (movies_count == 1)
+                return false;
+            if (movies_count > 1)
+                return true;
+            return artwork.first && !directories.empty();
+        }();
+
+        if (add_collection)
         {
             composer.parent_id = create_container(
                 path.stem().generic_u8string(),
@@ -306,6 +315,7 @@ auto movie_scanner::scan_directory(fs::path const& path, movies_library_config c
             if (artwork.first)
             {
                 ranges::for_each(directories, [collection_key = composer.parent_id](auto& tup) {
+                    spdlog::debug("Assigned parent {} to {}", collection_key.id(), std::get<fs::path>(tup));
                     std::get<ObjectKey>(tup) = collection_key;
                 });
             }
@@ -330,9 +340,9 @@ auto movie_scanner::scan_directory(fs::path const& path, movies_library_config c
 
 auto movie_scanner::scan_all(fs::path const& root, movies_library_config const& original_config) -> void
 {
-    auto directories = std::vector<std::tuple<fs::path, ObjectKey>>{{root, get_movies_folder_id()}};
     next_resource_id_ = store_.get_next_id<ResourceKey>();
     next_object_id_ = store_.get_next_id<ObjectKey>();
+    auto directories = std::vector<std::tuple<fs::path, ObjectKey>>{{root, get_movies_folder_id()}};
 
     auto config = original_config;
     config.use_collections = false;

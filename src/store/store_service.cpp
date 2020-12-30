@@ -171,7 +171,8 @@ auto store_service::put_items(ObjectKey parent,
     for (auto&& item_buf : items)
     {
         auto item = flatbuffers::GetRoot<MediaObject>(item_buf.data());
-        spdlog::debug("Adding new item with key: {}", item->id()->id());
+        spdlog::debug("Adding new item with parent/key: {}/{}, name: {}",
+                      parent.id(), item->id()->id(), as_string_view<char>(*item->dc_title()));
         // TODO: parent id parameter is not needed
         if (item->parent_id()->id() != parent.id())
             throw std::logic_error("Parent mismatch");
