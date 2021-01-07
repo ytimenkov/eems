@@ -12,6 +12,8 @@
 #include <pugixml.hpp>
 #include <range/v3/algorithm/count_if.hpp>
 #include <range/v3/algorithm/for_each.hpp>
+#include <range/v3/view/drop.hpp>
+#include <range/v3/view/take.hpp>
 #include <spdlog/spdlog.h>
 
 namespace eems
@@ -194,7 +196,10 @@ inline auto add_soap_envelope(pugi::xml_document& xml_doc) -> pugi::xml_node
     return soap_root.append_child("s:Body");
 }
 
-auto browse_response(store_service::list_result_view const& list, std::string_view base_url) -> beast::flat_buffer
+auto browse_response(store_service::list_result_view const& list,
+                     uint32_t start_index, uint32_t requested_count,
+                     std::string_view base_url)
+    -> beast::flat_buffer
 {
     auto [xml_doc, didl_root] = generate_preamble("DIDL-Lite", "urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/");
     didl_root.append_attribute("xmlns:upnp").set_value("urn:schemas-upnp-org:metadata-1-0/upnp/");
@@ -205,8 +210,13 @@ auto browse_response(store_service::list_result_view const& list, std::string_vi
     auto const count = 0;
     auto const size = 0;
 #else
-    auto const count = ranges::count_if(list, std::bind_front(&serialize_media_object, std::ref(didl_root), base_url));
+    static_assert(ranges::random_access_range<store_service::list_result_view>, "Must be a random access");
     auto const size = ranges::size(list);
+    if (!requested_count)
+        requested_count = size;
+    auto const count = ranges::count_if(
+        list | views::drop(start_index) | views::take(requested_count),
+        std::bind_front(&serialize_media_object, std::ref(didl_root), base_url));
 #endif
 
     beast::flat_buffer result;

@@ -13,7 +13,9 @@ namespace eems
 auto root_device_description(server_config const& server_config)
     -> beast::flat_buffer;
 
-auto browse_response(store_service::list_result_view const& list, std::string_view base_url)
+auto browse_response(store_service::list_result_view const& list,
+                     uint32_t start_index, uint32_t requested_count,
+                     std::string_view base_url)
     -> beast::flat_buffer;
 
 auto error_response(int code, char const* description)

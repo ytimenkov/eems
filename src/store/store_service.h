@@ -65,6 +65,11 @@ public:
                 ++key_it_;
             }
 
+            auto prev() noexcept -> void
+            {
+                --key_it_;
+            }
+
             auto equal(cursor const& other) const noexcept -> bool
             {
                 return key_it_ == other.key_it_;

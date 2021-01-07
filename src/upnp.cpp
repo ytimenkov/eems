@@ -69,6 +69,16 @@ auto upnp_service::handle_cds_browse(tcp_stream& stream, http_request&& req, soa
     {
         throw upnp_error{upnp_error::code::no_such_object, "Invalid ID"};
     }
+    uint32_t start_index = 0;
+    if (auto const val = soap_req.params.child_value("StartingIndex"); !parse(std::string_view{val}, x3::uint32, start_index))
+    {
+        throw upnp_error{upnp_error::code::invalid_args, "Invalid StartingIndex"};
+    }
+    uint32_t requested_count = 0;
+    if (auto const val = soap_req.params.child_value("RequestedCount"); !parse(std::string_view{val}, x3::uint32, requested_count))
+    {
+        throw upnp_error{upnp_error::code::invalid_args, "Invalid RequestedCount"};
+    }
 
     auto contents = [flag = std::string_view{soap_req.params.child_value("BrowseFlag")},
                      key = ObjectKey{object_id},
@@ -83,7 +93,7 @@ auto upnp_service::handle_cds_browse(tcp_stream& stream, http_request&& req, soa
 
     co_await http::async_write(
         stream, create_buffer_response(
-                    req, browse_response(std::move(contents), server_config_.base_url).cdata(), "text/xml"));
+                    req, browse_response(std::move(contents), start_index, requested_count, server_config_.base_url).cdata(), "text/xml"));
 }
 
 auto upnp_service::handle_upnp_request(tcp_stream& stream, http_request&& req, fs::path sub_path)
