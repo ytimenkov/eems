@@ -149,7 +149,6 @@ inline auto store_service::create_iterator() const -> std::unique_ptr<::leveldb:
     return std::unique_ptr<leveldb::Iterator>{db_->NewIterator(leveldb::ReadOptions{})};
 }
 
-#if !(__INTELLISENSE__ == 1)
 auto store_service::put_items(ObjectKey parent,
                               std::vector<flatbuffers::DetachedBuffer>&& items,
                               std::vector<std::tuple<ResourceKey, flatbuffers::DetachedBuffer>>&& resources)
@@ -206,7 +205,6 @@ auto store_service::put_items(ObjectKey parent,
     // Or serializing path will also require a copy and therefore it is still possible to
     // reserve certain prefix except for / (or drive letter) for virtual listings...
 }
-#endif
 
 auto store_service::list_result_view::cursor::read() const
     -> MediaObject const&
@@ -255,7 +253,6 @@ auto store_service::get_resource(ResourceKey id)
     return result;
 }
 
-#if !(__INTELLISENSE__ == 1)
 auto store_service::deserialize_container(std::string const& key, ::leveldb::Iterator& iter, bool include_meta)
     -> std::tuple<std::vector<std::string>, std::unique_ptr<container_meta>>
 {
@@ -341,6 +338,5 @@ auto serialize_container(std::vector<std::string> const& contents, container_met
     fbb.Finish(builder.Finish());
     return fbb.Release();
 }
-#endif
 
 }

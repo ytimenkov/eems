@@ -206,10 +206,6 @@ auto browse_response(store_service::list_result_view const& list,
     didl_root.append_attribute("xmlns:dc").set_value("http://purl.org/dc/elements/1.1/");
     didl_root.append_attribute("xmlns:xbmc").set_value("urn:schemas-xbmc-org:metadata-1-0/");
 
-#if __INTELLISENSE__ == 1
-    auto const count = 0;
-    auto const size = 0;
-#else
     static_assert(ranges::random_access_range<store_service::list_result_view>, "Must be a random access");
     auto const size = ranges::size(list);
     if (!requested_count)
@@ -217,7 +213,6 @@ auto browse_response(store_service::list_result_view const& list,
     auto const count = ranges::count_if(
         list | views::drop(start_index) | views::take(requested_count),
         std::bind_front(&serialize_media_object, std::ref(didl_root), base_url));
-#endif
 
     beast::flat_buffer result;
     buffer_writer writer{result};

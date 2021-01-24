@@ -81,9 +81,7 @@ auto normalize_title(std::u8string title) -> std::tuple<std::string, int>
     int year = 0;
     if (std::smatch m; std::regex_search(ntitle, m, re_year))
     {
-#if !(__INTELLISENSE__ == 1)
         parse(std::basic_string_view{m[1].first, m[1].second}, x3::int64, year);
-#endif
         ntitle.erase(m[0].first, ntitle.end());
     }
     boost::algorithm::trim(ntitle);
@@ -325,7 +323,6 @@ auto movie_scanner::scan_directory(fs::path const& path, movies_library_config c
     if (config.use_folder_names && videos.size() == 1)
         composer.folder_name = path.stem().u8string();
 
-#if !(__INTELLISENSE__ == 1)
     if (videos.size() > 0)
     {
         store_.put_items(
@@ -333,7 +330,6 @@ auto movie_scanner::scan_directory(fs::path const& path, movies_library_config c
             views::transform(videos, std::ref(composer)) | ranges::to<std::vector>(),
             std::move(std::move(composer.resources)));
     }
-#endif
 
     return directories;
 }
@@ -363,7 +359,6 @@ auto movie_scanner::get_movies_folder_id() -> ObjectKey
 
     ObjectKey const root_key{};
 
-#if !(__INTELLISENSE__ == 1)
     {
         auto root_container_view = store_.list(root_key);
         if (auto it = ranges::find_if(root_container_view, [](MediaObject const& item) {
@@ -374,7 +369,6 @@ auto movie_scanner::get_movies_folder_id() -> ObjectKey
             return movies_folder_ = *it->id();
         }
     }
-#endif
 
     flatbuffers::FlatBufferBuilder fbb{};
 
