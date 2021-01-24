@@ -13,7 +13,6 @@ find_package(pugixml REQUIRED)
 find_package(range-v3 REQUIRED)
 find_package(toml11 REQUIRED)
 find_package(Flatbuffers REQUIRED)
-find_package(flatc REQUIRED)
 find_package(leveldb REQUIRED)
 find_package(date REQUIRED)
 

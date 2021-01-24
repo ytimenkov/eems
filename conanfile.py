@@ -1,4 +1,5 @@
-from conans import CMake, CMakeToolchain, ConanFile, tools
+from conans import ConanFile, tools
+from conan.tools.cmake import CMakeToolchain, CMake
 
 
 class EemsConan(ConanFile):
@@ -45,9 +46,9 @@ class EemsConan(ConanFile):
         if self.options.shared:
             del self.options.fPIC
 
-    def toolchain(self):
+    def generate(self):
         tc = CMakeToolchain(self)
-        tc.write_toolchain_files()
+        tc.generate()
 
     def build(self):
         cmake = CMake(self)
