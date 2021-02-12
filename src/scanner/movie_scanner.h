@@ -30,7 +30,8 @@ private:
         -> std::vector<std::tuple<fs::path, ObjectKey>>;
 
     auto create_container(std::u8string_view name,
-                          std::tuple<file_info const*, ArtworkType> artwork)
+                          std::tuple<file_info const*, ArtworkType> artwork,
+                          ObjectKey parent)
         -> ObjectKey;
 
     auto serialize_resource(file_info const& info)

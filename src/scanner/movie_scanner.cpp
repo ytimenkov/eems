@@ -246,7 +246,7 @@ struct object_composer
 auto movie_scanner::scan_directory(fs::path const& path, movies_library_config const& config, ObjectKey parent)
     -> std::vector<std::tuple<fs::path, ObjectKey>>
 {
-    spdlog::debug("Scanning: {}", path);
+    spdlog::info("Scanning for movies: {}", path);
 
     std::vector<std::tuple<fs::path, ObjectKey>> directories{};
 
@@ -308,7 +308,8 @@ auto movie_scanner::scan_directory(fs::path const& path, movies_library_config c
         {
             composer.parent_id = create_container(
                 path.stem().generic_u8string(),
-                {artwork.first ? &artwork.first->second : nullptr, artwork.second});
+                {artwork.first ? &artwork.first->second : nullptr, artwork.second},
+                parent);
 
             if (artwork.first)
             {
@@ -395,7 +396,8 @@ auto movie_scanner::get_movies_folder_id() -> ObjectKey
 }
 
 auto movie_scanner::create_container(std::u8string_view name,
-                                     std::tuple<file_info const*, ArtworkType> artwork)
+                                     std::tuple<file_info const*, ArtworkType> artwork,
+                                     ObjectKey parent)
     -> ObjectKey
 {
     std::vector<flatbuffers::DetachedBuffer> items;
@@ -403,7 +405,7 @@ auto movie_scanner::create_container(std::u8string_view name,
 
     container_meta meta{
         .id{next_object_key()},
-        .parent_id{get_movies_folder_id()},
+        .parent_id{parent},
         .dc_title{std::u8string{name}},
         .upnp_class{upnp_container_class}};
 
@@ -432,7 +434,7 @@ auto movie_scanner::serialize_resource(file_info const& info)
     resource_builder.add_mime_type(mime);
     resource_fbb.Finish(resource_builder.Finish());
     auto const resource_key = next_resource_key();
-    spdlog::debug("Assigning resource key: {} to {}", resource_key.id(), info.path);
+    spdlog::info("Assigning resource key: {} to {}", resource_key.id(), info.path);
     return {resource_key, resource_fbb.Release()};
 }
 

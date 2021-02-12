@@ -30,7 +30,7 @@ int main(int argc, char const* argv[])
         eems::movie_scanner movie_scanner{store_service};
         for (auto& dir : config.data.content_directories)
         {
-            spdlog::info("Scanning: {}", dir.path);
+            spdlog::info("Scanning library: {}", dir.path);
             std::visit(eems::lambda_visitor{
                            [&path = dir.path, &movie_scanner](eems::movies_library_config const& config) {
                                movie_scanner.scan_all(path, config);
