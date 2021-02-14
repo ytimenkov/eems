@@ -22,12 +22,13 @@ target_link_libraries(store
     spdlog::spdlog
     )
 
-target_include_directories(store PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+#target_include_directories(store PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 
 function(add_flatc_commands target)
     get_target_property(srcs ${target} SOURCES)
     get_target_property(src_dir ${target} SOURCE_DIR)
-    get_target_property(bin_dir ${target} BINARY_DIR)
+    # get_target_property(bin_dir ${target} BINARY_DIR)
+    set(bin_dir ${src_dir})
     foreach(src ${srcs})
         get_filename_component(ext ${src} EXT)
         if(${ext} STREQUAL .fbs)
