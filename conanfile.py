@@ -34,7 +34,7 @@ class EemsConan(ConanFile):
     ]
 
     build_requires = [
-        "flatc/1.12.0",
+        "flatbuffers/1.12.0",
     ]
 
     def config_options(self):
