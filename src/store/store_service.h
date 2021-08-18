@@ -35,9 +35,9 @@ public:
     template <typename TKey>
     auto get_next_id() const -> int64_t;
 
-    auto put_items(ObjectKey parent,
-                   std::vector<flatbuffers::DetachedBuffer>&& items,
-                   std::vector<std::tuple<ResourceKey, flatbuffers::DetachedBuffer>>&& resources) -> void;
+    auto put_items(std::vector<flatbuffers::DetachedBuffer>&& items,
+                   std::vector<std::tuple<ResourceKey, flatbuffers::DetachedBuffer>>&& resources,
+                   std::tuple<PathKey, flatbuffers::DetachedBuffer>&& path_data) -> void;
 
     class list_result_view : public ranges::view_facade<list_result_view>
     {

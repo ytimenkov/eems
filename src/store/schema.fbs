@@ -8,9 +8,14 @@ struct ResourceKey {
     id: int64;
 }
 
+table PathKey {
+    location: [ubyte] (required);
+}
+
 union KeyUnion {
     ObjectKey,
     ResourceKey,
+    PathKey,
 }
 
 table LibraryKey {
@@ -20,6 +25,11 @@ table LibraryKey {
 table Resource {
     location: [ubyte];
     mime_type: [ubyte];
+}
+
+table PathData {
+    hash: uint64;
+    objects: [MediaObjectRef];
 }
 
 table ResourceRef {

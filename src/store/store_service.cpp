@@ -53,6 +53,8 @@ int store_service::fb_comparator::Compare(leveldb::Slice const& lhs_s, leveldb::
             return *lhs->key_as<ObjectKey>() <=> *rhs->key_as<ObjectKey>();
         case KeyUnion::ResourceKey:
             return *lhs->key_as<ResourceKey>() <=> *rhs->key_as<ResourceKey>();
+        case KeyUnion::PathKey:
+            return as_string_view<char8_t>(*lhs->key_as<PathKey>()->location()) <=> as_string_view<char8_t>(*rhs->key_as<PathKey>()->location());
         case KeyUnion::NONE:
             spdlog::error("Unexpected key type: {}", lhs->key_type());
         }
