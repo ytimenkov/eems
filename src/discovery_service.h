@@ -7,6 +7,7 @@
 #include <boost/asio/use_awaitable.hpp>
 #include <boost/beast/http/empty_body.hpp>
 #include <boost/beast/http/message.hpp>
+#include <optional>
 
 namespace eems
 {

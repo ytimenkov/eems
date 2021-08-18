@@ -22,19 +22,19 @@ class EemsConan(ConanFile):
     }
 
     requires = [
-        "boost/1.75.0",
-        "fmt/7.1.3",
-        "pugixml/1.10",
-        "spdlog/1.8.2",
+        "boost/1.77.0",
+        "fmt/8.0.0",
+        "pugixml/1.11",
+        "spdlog/1.9.2",
         "range-v3/0.11.0",
-        "toml11/3.6.0",
+        "toml11/3.7.0",
         "leveldb/1.22",
-        "flatbuffers/1.12.0",
-        "date/3.0.0@",
+        "flatbuffers/2.0.0",
+        "date/3.0.1",
     ]
 
     build_requires = [
-        "flatbuffers/1.12.0",
+        "flatbuffers/2.0.0",
     ]
 
     def config_options(self):

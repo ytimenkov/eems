@@ -8,6 +8,7 @@
 #include <chrono>
 #include <date/date.h>
 #include <fmt/ostream.h>
+#include <fmt/xchar.h>
 #include <map>
 #include <range/v3/action/push_back.hpp>
 #include <range/v3/algorithm/find_if.hpp>
@@ -295,7 +296,8 @@ auto movie_scanner::scan_directory(fs::path const& path, movies_library_config c
     {
         auto const artwork = composer.get_folder_artwork();
 
-        const auto add_collection = [&]() mutable -> bool {
+        const auto add_collection = [&]() mutable -> bool
+        {
             auto const movies_count = videos.size();
             if (movies_count == 1)
                 return false;
@@ -313,10 +315,11 @@ auto movie_scanner::scan_directory(fs::path const& path, movies_library_config c
 
             if (artwork.first)
             {
-                ranges::for_each(directories, [collection_key = composer.parent_id](auto& tup) {
-                    spdlog::debug("Assigned parent {} to {}", collection_key.id(), std::get<fs::path>(tup));
-                    std::get<ObjectKey>(tup) = collection_key;
-                });
+                ranges::for_each(directories, [collection_key = composer.parent_id](auto& tup)
+                                 {
+                                     spdlog::debug("Assigned parent {} to {}", collection_key.id(), std::get<fs::path>(tup));
+                                     std::get<ObjectKey>(tup) = collection_key;
+                                 });
             }
         }
     }
@@ -362,9 +365,8 @@ auto movie_scanner::get_movies_folder_id() -> ObjectKey
 
     {
         auto root_container_view = store_.list(root_key);
-        if (auto it = ranges::find_if(root_container_view, [](MediaObject const& item) {
-                return as_string_view<char8_t>(*item.dc_title()) == movies_folder_name;
-            });
+        if (auto it = ranges::find_if(root_container_view, [](MediaObject const& item)
+                                      { return as_string_view<char8_t>(*item.dc_title()) == movies_folder_name; });
             it != ranges::end(root_container_view))
         {
             return movies_folder_ = *it->id();
