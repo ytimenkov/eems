@@ -14,6 +14,7 @@
 #include <boost/beast/version.hpp>
 #include <fmt/ostream.h>
 #include <fmt/ranges.h>
+#include <fmt/std.h>
 #include <range/v3/algorithm/find_if_not.hpp>
 #include <range/v3/begin_end.hpp>
 #include <range/v3/iterator.hpp>
@@ -48,7 +49,7 @@ auto server::handle_connections(net::ip::tcp::socket socket) -> net::awaitable<v
             auto rc = co_await http::async_read(stream, buffer, req, as_result(net::use_awaitable)); // TODO: use_async_result
             if (!rc)
             {
-                spdlog::debug("Read failed: {}", rc.error());
+                spdlog::debug("Read failed: {}", fmt::streamed(rc.error()));
                 break;
             }
 

@@ -113,10 +113,12 @@ auto root_device_description(server_config const& server_config) -> beast::flat_
 
 auto serialize_media_object(pugi::xml_node& didl_root, std::string_view content_base, MediaObject const& object) -> bool
 {
-    auto resource_url = [content_base](int64_t id) {
+    auto resource_url = [content_base](int64_t id)
+    {
         return fmt::format("{}/content/{}", content_base, id);
     };
-    auto serialize_common_fields = [&object, resource_url](pugi::xml_node& node) {
+    auto serialize_common_fields = [&object, resource_url](pugi::xml_node& node)
+    {
         node.append_attribute("id").set_value(object.id()->id());
         node.append_attribute("parentID").set_value(object.parent_id()->id());
         node.append_attribute("restricted").set_value("1");
@@ -133,7 +135,8 @@ auto serialize_media_object(pugi::xml_node& didl_root, std::string_view content_
                             static_cast<unsigned>(date.day()))
                     .c_str());
         }
-        ranges::for_each(fb_vector_view{object.artwork()}, [&node, resource_url](Artwork const& aw) {
+        ranges::for_each(fb_vector_view{object.artwork()}, [&node, resource_url](Artwork const& aw)
+                         {
             auto const id = aw.ref_nested_root()->key_as_ResourceKey()->id();
             // TODO: Some set dlna:protocolInfo extension to JPEG_TN, but it seems to be ignored.
             auto const url = resource_url(id);
@@ -147,8 +150,7 @@ auto serialize_media_object(pugi::xml_node& didl_root, std::string_view content_
                 break;
             case ArtworkType::Thumbnail:
                 aw_node.append_attribute("type").set_value("thumb");
-            };
-        });
+            }; });
     };
 
     switch (object.data_type())
@@ -159,7 +161,8 @@ auto serialize_media_object(pugi::xml_node& didl_root, std::string_view content_
         auto node = didl_root.append_child("item");
         serialize_common_fields(node);
         ranges::for_each(fb_vector_view{item.resources()},
-                         [&node, resource_url](ResourceRef const& r) {
+                         [&node, resource_url](ResourceRef const& r)
+                         {
                              if (auto res_key = r.ref_nested_root()->key_as_ResourceKey(); res_key)
                              {
                                  auto res = node.append_child("res");
@@ -182,7 +185,7 @@ auto serialize_media_object(pugi::xml_node& didl_root, std::string_view content_
     break;
 
     case ObjectUnion::NONE:
-        spdlog::warn("Unknown object {} type: {}", object.id()->id(), object.data_type());
+        spdlog::warn("Unknown object {} type: {}", object.id()->id(), fmt::underlying(object.data_type()));
         return false;
     }
     return true;

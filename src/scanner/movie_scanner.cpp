@@ -8,6 +8,7 @@
 #include <chrono>
 #include <date/date.h>
 #include <fmt/ostream.h>
+#include <fmt/std.h>
 #include <fmt/xchar.h>
 #include <map>
 #include <range/v3/action/push_back.hpp>
@@ -318,8 +319,7 @@ auto movie_scanner::scan_directory(fs::path const& path, movies_library_config c
                 ranges::for_each(directories, [collection_key = composer.parent_id](auto& tup)
                                  {
                                      spdlog::debug("Assigned parent {} to {}", collection_key.id(), std::get<fs::path>(tup));
-                                     std::get<ObjectKey>(tup) = collection_key;
-                                 });
+                                     std::get<ObjectKey>(tup) = collection_key; });
             }
         }
     }

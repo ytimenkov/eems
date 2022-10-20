@@ -8,8 +8,8 @@
 #include <boost/asio/detached.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/signal_set.hpp>
-#include <fmt/ostream.h>
 #include <fmt/ranges.h>
+#include <fmt/std.h>
 #include <spdlog/spdlog.h>
 
 int main(int argc, char const* argv[])
@@ -31,10 +31,10 @@ int main(int argc, char const* argv[])
         for (auto& dir : config.data.content_directories)
         {
             spdlog::info("Scanning library: {}", dir.path);
-            std::visit(eems::lambda_visitor{
-                           [&path = dir.path, &movie_scanner](eems::movies_library_config const& config) {
-                               movie_scanner.scan_all(path, config);
-                           }},
+            std::visit(eems::lambda_visitor{[&path = dir.path, &movie_scanner](eems::movies_library_config const& config)
+                                            {
+                                                movie_scanner.scan_all(path, config);
+                                            }},
                        dir.scanner_config);
         }
     }
@@ -42,7 +42,8 @@ int main(int argc, char const* argv[])
     boost::asio::io_context io_context{1};
 
     boost::asio::signal_set signals(io_context, SIGINT, SIGTERM);
-    signals.async_wait([&](auto, auto) { io_context.stop(); });
+    signals.async_wait([&](auto, auto)
+                       { io_context.stop(); });
 
     boost::asio::co_spawn(io_context, server.run_server(), boost::asio::detached);
     boost::asio::co_spawn(io_context, discovery_service.run_service(), boost::asio::detached);

@@ -1,3 +1,4 @@
 /.vscode/
 /build/
 src/store/schema_generated.h
+/CMakeUserPresets.json

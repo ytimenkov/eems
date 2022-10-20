@@ -1,7 +1,5 @@
 add_library(store)
 
-find_program(FLATC_PATH flatc)
-
 target_sources(store PRIVATE
     fb_converters.h
     fb_vector_view.h
@@ -15,7 +13,7 @@ target_sources(store PRIVATE
 
 target_link_libraries(store
     PUBLIC
-    flatbuffers::flatbuffers
+    flatbuffers::libflatbuffers
     leveldb::leveldb
     range-v3::range-v3
     PRIVATE
@@ -34,8 +32,8 @@ function(add_flatc_commands target)
         if(${ext} STREQUAL .fbs)
             get_filename_component(fname ${src} NAME_WE)
             set(generated_name "${fname}_generated.h")
-            add_custom_command(OUTPUT ${generated_name}
-                COMMAND ${FLATC_PATH} --scoped-enums --gen-mutable -o ${bin_dir} --cpp ${src}
+            add_custom_command(OUTPUT ${bin_dir}/${generated_name}
+                COMMAND flatbuffers::flatc --scoped-enums --gen-mutable -o ${bin_dir} --cpp ${src}
                 MAIN_DEPENDENCY ${src}
                 WORKING_DIRECTORY ${src_dir}
                 VERBATIM

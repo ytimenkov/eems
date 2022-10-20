@@ -46,7 +46,8 @@ int store_service::fb_comparator::Compare(leveldb::Slice const& lhs_s, leveldb::
     {
         return ordering_to_int(cmp);
     }
-    auto const cmp = [&]() {
+    auto const cmp = [&]()
+    {
         switch (lhs->key_type())
         {
         case KeyUnion::ObjectKey:
@@ -54,7 +55,7 @@ int store_service::fb_comparator::Compare(leveldb::Slice const& lhs_s, leveldb::
         case KeyUnion::ResourceKey:
             return *lhs->key_as<ResourceKey>() <=> *rhs->key_as<ResourceKey>();
         case KeyUnion::NONE:
-            spdlog::error("Unexpected key type: {}", lhs->key_type());
+            spdlog::error("Unexpected key type: {}", fmt::underlying(lhs->key_type()));
         }
         return std::strong_ordering::equivalent;
     }();
@@ -124,7 +125,7 @@ inline auto store_service::get_next_id() const -> int64_t
     }
     else
     {
-        spdlog::debug("At key type {}, Seeking to previous", flatbuffers::GetRoot<LibraryKey>(it->key().data())->key_type());
+        spdlog::debug("At key type {}, Seeking to previous", fmt::underlying(flatbuffers::GetRoot<LibraryKey>(it->key().data())->key_type()));
         it->Prev();
     }
     if (!it->Valid())
@@ -135,7 +136,7 @@ inline auto store_service::get_next_id() const -> int64_t
     auto key = flatbuffers::GetRoot<LibraryKey>(it->key().data());
     if (key->key_type() != KeyUnionTraits<TKey>::enum_value)
     {
-        spdlog::debug("Sought to: {}, no keys with requested type", key->key_type());
+        spdlog::debug("Sought to: {}, no keys with requested type", fmt::underlying(key->key_type()));
         return 0;
     }
     return key->key_as<TKey>()->id() + 1;
@@ -264,7 +265,7 @@ auto store_service::deserialize_container(std::string const& key, ::leveldb::Ite
     auto media_object = flatbuffers::GetRoot<MediaObject>(iter.value().data());
     if (media_object->data_type() != ObjectUnion::MediaContainer)
     {
-        throw std::runtime_error(fmt::format("Object is not a container. type={}", media_object->data_type()));
+        throw std::runtime_error(fmt::format("Object is not a container. type={}", fmt::underlying(media_object->data_type())));
     }
     auto container = static_cast<MediaContainer const*>(media_object->data());
 
@@ -282,9 +283,8 @@ auto store_service::deserialize_container(std::string const& key, ::leveldb::Ite
         if (auto artwork = media_object->artwork(); artwork)
         {
             ranges::push_back(meta->artwork,
-                              views::transform(*artwork, [](Artwork const* item) {
-                                  return std::tuple{as_library_key(*item->ref()), item->type()};
-                              }));
+                              views::transform(*artwork, [](Artwork const* item)
+                                               { return std::tuple{as_library_key(*item->ref()), item->type()}; }));
         }
     }
 
@@ -292,9 +292,8 @@ auto store_service::deserialize_container(std::string const& key, ::leveldb::Ite
     if (auto objects = container->objects(); objects)
     {
         ranges::push_back(container_data,
-                          views::transform(*objects, [](MediaObjectRef const* ref) {
-                              return as_library_key(*ref->ref());
-                          }));
+                          views::transform(*objects, [](MediaObjectRef const* ref)
+                                           { return as_library_key(*ref->ref()); }));
     }
     return {std::move(container_data), std::move(meta)};
 }
@@ -308,18 +307,16 @@ auto serialize_container(std::vector<std::string> const& contents, container_met
         fbb,
         fbb.CreateVector(
             contents |
-            views::transform([&fbb](auto const& key_buf) {
-                return CreateMediaObjectRef(fbb, CreateLibraryKey(fbb, key_buf));
-            }) |
+            views::transform([&fbb](auto const& key_buf)
+                             { return CreateMediaObjectRef(fbb, CreateLibraryKey(fbb, key_buf)); }) |
             ranges::to<std::vector>()));
 
     flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<Artwork>>> artwork_off{};
     if (!meta.artwork.empty())
     {
         artwork_off = fbb.CreateVector(
-            meta.artwork | views::transform([&fbb](auto const& tup) {
-                return CreateArtwork(fbb, CreateLibraryKey(fbb, std::get<0>(tup)), std::get<1>(tup));
-            }) |
+            meta.artwork | views::transform([&fbb](auto const& tup)
+                                            { return CreateArtwork(fbb, CreateLibraryKey(fbb, std::get<0>(tup)), std::get<1>(tup)); }) |
             ranges::to<std::vector>());
     }
 

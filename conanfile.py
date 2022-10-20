@@ -1,16 +1,17 @@
-from conans import ConanFile, tools
-from conan.tools.cmake import CMakeToolchain, CMake
+from conan.tools.build import check_min_cppstd
+from conan.tools.cmake import CMake, cmake_layout
+
+from conan import ConanFile
 
 
 class EemsConan(ConanFile):
     name = "eems"
 
-    generators = ("cmake_find_package",)
+    generators = "CMakeDeps", "CMakeToolchain"
     settings = "os", "arch", "compiler", "build_type"
 
-    scm = {"type": "git", "url": "auto", "revision": "auto"}
-
     options = {"shared": [True, False], "fPIC": [True, False]}
+
     default_options = {
         "shared": False,
         "fPIC": True,
@@ -22,40 +23,30 @@ class EemsConan(ConanFile):
     }
 
     requires = [
-        "boost/1.77.0",
-        "fmt/8.0.0",
-        "pugixml/1.11",
-        "spdlog/1.9.2",
-        "range-v3/0.11.0",
-        "toml11/3.7.0",
-        "leveldb/1.22",
-        "flatbuffers/2.0.0",
+        "boost/1.80.0",
+        "fmt/9.1.0",
+        "pugixml/1.12.1",
+        "spdlog/1.10.0",
+        "range-v3/0.12.0",
+        "toml11/3.7.1",
+        "leveldb/1.23",
+        "flatbuffers/2.0.8",
         "date/3.0.1",
     ]
 
-    build_requires = [
-        "flatbuffers/2.0.0",
+    tool_requires = [
+        "flatbuffers/2.0.8",
     ]
 
-    def config_options(self):
-        if self.settings.os == "Windows":
-            del self.options.fPIC
+    def validate(self):
+        check_min_cppstd(self, "20")
 
-    def configure(self):
-        tools.check_min_cppstd(self, "20")
-        if self.options.shared:
-            del self.options.fPIC
-
-    def generate(self):
-        tc = CMakeToolchain(self)
-        tc.generate()
+    def layout(self):
+        cmake_layout(self)
 
     def build(self):
         cmake = CMake(self)
 
         cmake.configure()
         cmake.build()
-
-        if tools.get_env("CONAN_RUN_TESTS", True):
-            with tools.run_environment(self):
-                cmake.test(output_on_failure=True)
+        cmake.test(output_on_failure=True)

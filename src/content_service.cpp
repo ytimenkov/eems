@@ -12,6 +12,7 @@
 #include <boost/fusion/adapted/std_tuple.hpp>
 #include <boost/fusion/include/std_tuple.hpp>
 #include <fmt/ostream.h>
+#include <fmt/std.h>
 #include <spdlog/spdlog.h>
 
 namespace boost::beast::http
@@ -34,7 +35,8 @@ auto content_service::create_response(fs::path const& sub_path, http_request con
 
     std::tuple<std::optional<std::uintmax_t>, std::optional<std::uintmax_t>> request_range;
 
-    auto range_not_satisfiable = []() {
+    auto range_not_satisfiable = []()
+    {
         // TODO: A server generating a 416 (Range Not Satisfiable) response to a
         //       byte-range request SHOULD send a Content-Range header field with an
         //       unsatisfied-range value, as in the following example:
@@ -65,7 +67,8 @@ auto content_service::create_response(fs::path const& sub_path, http_request con
     auto& [resp, file, size] = result;
     beast::error_code ec;
 
-    auto internal_server_error = [&ec]() {
+    auto internal_server_error = [&ec]()
+    {
         throw http_error{http::status::internal_server_error, ec.message().c_str()};
     };
 
@@ -158,14 +161,14 @@ auto content_service::handle_request(tcp_stream& stream, http_request&& req, fs:
         auto const read_bytes = file.read(produce_buffer.data(), produce_buffer.size(), ec);
         if (ec)
         {
-            spdlog::error("Read failed: {}", ec);
+            spdlog::error("Read failed: {}", fmt::streamed(ec));
             stream.close();
             co_return false;
         }
         buffer.commit(read_bytes);
 
         auto const written_bytes = co_await net::async_write(stream, buffer.data(),
-                                                   as_result(net::use_awaitable)); // TODO: use_async_result
+                                                             as_result(net::use_awaitable)); // TODO: use_async_result
         if (!written_bytes)
         {
             co_return false;

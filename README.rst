@@ -11,16 +11,15 @@ Use `Conan <https://conan.io>`_ for dependencies.
 .. code-block:: bash
 
     # Install Conan
-    $ pip3 install --user conan
+    $ pipx install conan
 
     # Autodetect system settings
     $ conan profile new default --detect
 
     # Install dependencies (debug build)
-    $ conan install . -if build/dev -pr:h default -pr:h conan/dev -pr:b default --build missing
+    $ conan install . -if build -pr:h default -pr:h conan/dev -pr:b default --build missing
 
     # Configure CMake
-    $ conan build . --configure -bf build/dev
+    $ conan --preset debug
 
-    # Build in build/dev
-
+    # Build in build/Debug

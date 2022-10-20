@@ -1,5 +1,4 @@
 # Profile for development
-OPT_FLAGS=-Og -ggdb3
 
 [settings]
 build_type=Debug
@@ -8,7 +7,6 @@ build_type=Debug
 # Use shared libraries for faster link time
 *:shared=True
 
-[env]
-CXXFLAGS=$OPT_FLAGS
-eems:CXXFLAGS=$OPT_FLAGS -Werror -Wall -fdiagnostics-color
-eems:CMAKE_EXPORT_COMPILE_COMMANDS=ON
+[conf]
+tools.build:cxxflags+=["-Og"]
+eems:tools.build:cxxflags+=["-Werror", "-Wall", "-fdiagnostics-color"]
