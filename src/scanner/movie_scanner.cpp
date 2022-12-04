@@ -16,6 +16,7 @@
 #include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/transform.hpp>
+#include <ranges>
 #include <regex>
 #include <spdlog/spdlog.h>
 #include <unordered_map>
@@ -331,8 +332,8 @@ auto movie_scanner::scan_directory(fs::path const& path, movies_library_config c
     {
         store_.put_items(
             composer.parent_id,
-            views::transform(videos, std::ref(composer)) | ranges::to<std::vector>(),
-            std::move(std::move(composer.resources)));
+            std::ranges::views::transform(videos, std::ref(composer)) | ranges::to<std::vector>,
+            std::move(composer.resources));
     }
 
     return directories;

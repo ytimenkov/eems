@@ -20,6 +20,6 @@ find_package(date REQUIRED)
 
 # TODO: Implement proper detection.
 add_library(std::coroutines INTERFACE IMPORTED)
-target_compile_options(std::coroutines INTERFACE -fcoroutines)
+#target_compile_options(std::coroutines INTERFACE -fcoroutines)
 
 add_subdirectory(src)

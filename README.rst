@@ -20,6 +20,7 @@ Use `Conan <https://conan.io>`_ for dependencies.
     $ conan install . -if build -pr:h default -pr:h conan/dev -pr:b default --build missing
 
     # Configure CMake
-    $ conan --preset debug
+    $ bash -c " . build/clang/generators/conanbuild.sh && cmake --preset debug"
 
     # Build in build/Debug
+    $ bash -c " . build/clang/generators/conanbuild.sh && cmake --build --preset debug"
