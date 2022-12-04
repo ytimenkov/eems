@@ -56,7 +56,7 @@ auto load_data_config(toml_array const& data, data_config& config)
 
         if (type == "movies")
         {
-            config.content_directories.emplace_back(path, load_movies_config(table.as_table()));
+            config.content_directories.push_back({path, load_movies_config(table.as_table())});
         }
         else
         {
@@ -156,4 +156,4 @@ auto load_configuration(int argc, char const* argv[])
 
     return result;
 }
-}
+} // namespace eems

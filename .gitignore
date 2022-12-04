@@ -3,3 +3,7 @@
 src/store/schema_generated.h
 /CMakeUserPresets.json
 /.cache/
+conan.lock
+conanbuildinfo.txt
+conaninfo.txt
+graph_info.json

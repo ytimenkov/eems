@@ -66,7 +66,7 @@ public:
             executor_with_default<typename std::decay_t<T>::executor_type>>::other(std::forward<T>(object));
     }
 
-    //private:
+    // private:
     CompletionToken token_;
 };
 
@@ -119,7 +119,7 @@ public:
             handler_(result_t{std::forward<Arg>(arg)});
     }
 
-    //private:
+    // private:
     Handler handler_;
 };
 
@@ -169,7 +169,7 @@ namespace boost::asio
 template <typename CompletionToken, typename Signature>
 struct async_result<::eems::as_result_t<CompletionToken>, Signature>
 {
-    using return_type = async_result<CompletionToken, typename ::eems::detail::as_result_signature<Signature>::type>::return_type;
+    using return_type = typename async_result<CompletionToken, typename ::eems::detail::as_result_signature<Signature>::type>::return_type;
 
     template <typename Initiation>
     struct init_wrapper

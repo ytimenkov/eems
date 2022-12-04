@@ -2,7 +2,21 @@ BasedOnStyle: Microsoft
 UseTab: Never
 IndentWidth: 4
 AccessModifierOffset: -4
-BreakBeforeBraces: Allman
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterClass: true
+  BeforeLambdaBody: false
+  AfterControlStatement: Always
+  AfterEnum: true
+  AfterFunction: true
+  AfterNamespace: true
+  AfterStruct: true
+  AfterUnion: true
+  BeforeCatch: true
+  BeforeElse: true
+  IndentBraces: false
+LambdaBodyIndentation: Signature
+AllowShortLambdasOnASingleLine: Empty
 AllowShortIfStatementsOnASingleLine: false
 AllowShortFunctionsOnASingleLine: Inline
 IndentCaseLabels: false
@@ -14,3 +28,4 @@ DeriveLineEnding: false
 UseCRLF: false
 IncludeBlocks: Regroup
 FixNamespaceComments: false
+SortIncludes: CaseInsensitive

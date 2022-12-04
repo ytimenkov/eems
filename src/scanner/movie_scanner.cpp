@@ -16,7 +16,6 @@
 #include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/transform.hpp>
-#include <ranges>
 #include <regex>
 #include <spdlog/spdlog.h>
 #include <unordered_map>
@@ -129,7 +128,7 @@ struct object_composer
     {
         artwork_.emplace(std::piecewise_construct,
                          std::forward_as_tuple(path.filename().generic_u8string()),
-                         std::forward_as_tuple(mime_type, path));
+                         std::forward_as_tuple(file_info{mime_type, path}));
     }
 
     auto subtitles(fs::path const& path, std::u8string_view mime_type)
@@ -137,7 +136,7 @@ struct object_composer
     {
         subtitles_.emplace(std::piecewise_construct,
                            std::forward_as_tuple(path.filename().generic_u8string()),
-                           std::forward_as_tuple(mime_type, path));
+                           std::forward_as_tuple(file_info{mime_type, path}));
     }
 
     auto operator()(std::pair<fs::path, file_info> const& p)
@@ -278,7 +277,7 @@ auto movie_scanner::scan_directory(fs::path const& path, movies_library_config c
             auto file_name = path.filename();
             videos.emplace(std::piecewise_construct,
                            std::forward_as_tuple(std::move(file_name)),
-                           std::forward_as_tuple(*mime_type, std::move(path)));
+                           std::forward_as_tuple(file_info{*mime_type, std::move(path)}));
         }
         else if (is_image_type(*mime_type))
         {
@@ -332,7 +331,7 @@ auto movie_scanner::scan_directory(fs::path const& path, movies_library_config c
     {
         store_.put_items(
             composer.parent_id,
-            std::ranges::views::transform(videos, std::ref(composer)) | ranges::to<std::vector>,
+            views::transform(videos, std::ref(composer)) | ranges::to<std::vector>(),
             std::move(composer.resources));
     }
 

@@ -110,7 +110,7 @@ auto store_service::open_db(store_config const& config)
     return false;
 }
 
-store_service::~store_service() = default;
+store_service::~store_service() noexcept = default;
 
 template <typename TKey>
 inline auto store_service::get_next_id() const -> int64_t

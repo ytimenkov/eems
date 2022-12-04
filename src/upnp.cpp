@@ -23,7 +23,7 @@ auto create_buffer_response(http_request const& req,
 {
     auto response = http::response<http::buffer_body>{
         std::piecewise_construct,
-        std::make_tuple(const_cast<void*>(buffer.data()), buffer.size(), false), // TODO: It's a pity that bufer_body is always non-const.
+        std::make_tuple(http::buffer_body::value_type{const_cast<void*>(buffer.data()), buffer.size(), false}), // TODO: It's a pity that bufer_body is always non-const.
         std::make_tuple(status, req.version())};
     response.set(http::field::server, BOOST_BEAST_VERSION_STRING);
     response.set(http::field::content_type, mime_type);
